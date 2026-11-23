@@ -1,0 +1,13 @@
+'use strict';
+const crypto=require('node:crypto');
+const {createPlayer,publicPlayer}=require('../game/player');
+const game=require('../game/game');
+const rooms=new Map();
+function createRoom(name){let code;do{code=crypto.randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(code));const room={code,players:[],listeners:new Map(),phase:'waiting',turnIndex:null,round:0,event:'等待玩家加入，房主可以开始游戏。'};rooms.set(code,room);const player=joinRoom(code,name);return {room,player};}
+function joinRoom(code,name){const room=rooms.get(String(code).trim().toUpperCase());if(!room)throw new Error('房间不存在');if(room.phase!=='waiting')throw new Error('游戏已经开始，不能加入');if(room.players.length>=6)throw new Error('房间已满（最多 6 人）');const player=createPlayer(name,room.players.length+1);room.players.push(player);room.event=`${name}加入了房间。`;broadcast(room);return player;}
+function authenticate(code,token){const room=rooms.get(String(code).trim().toUpperCase());const player=room&&room.players.find(p=>p.token===token);if(!player)throw new Error('房间或玩家身份无效');return {room,player};}
+function snapshot(room,player){return {code:room.code,phase:room.phase,round:room.round,hostId:room.players[0].id,currentPlayerId:room.turnIndex===null?null:room.players[room.turnIndex].id,event:room.event,self:{...publicPlayer(player),hand:player.hand},players:room.players.map(publicPlayer)};}
+function broadcast(room){for(const [playerId,connections] of room.listeners){const p=room.players.find(x=>x.id===playerId);if(!p)continue;const msg=`data: ${JSON.stringify(snapshot(room,p))}\n\n`;for(const res of connections)res.write(msg);}}
+function action(code,token,type){const {room,player}=authenticate(code,token);if(type==='start')game.startGame(room,player);else if(type==='end-turn')game.endTurn(room,player);else throw new Error('未知操作');broadcast(room);return snapshot(room,player);}
+function subscribe(room,player,res){if(!room.listeners.has(player.id))room.listeners.set(player.id,new Set());const connections=room.listeners.get(player.id);connections.add(res);res.write(`data: ${JSON.stringify(snapshot(room,player))}\n\n`);res.on('close',()=>{connections.delete(res);if(!connections.size)room.listeners.delete(player.id);});}
+module.exports={createRoom,joinRoom,authenticate,subscribe,action};
