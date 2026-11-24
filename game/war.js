@@ -28,14 +28,39 @@ function respondWar(room,player,body){
   }
   if(w.phase==='defense'){
     const hard=body.choice==='hard';if(!hard&&body.choice!=='general')throw Error('请选择武将或国家硬抗');
-    const attackGenerals=selected(a,w.attackerIndices),defenseGenerals=hard?[]:selected(d,body.indices);
-    const distance=seatDistance(room.players.filter(p=>p.health>0).map(p=>p.id),a.id,d.id);
-    const result=calculateBattle({attack:teamPower(attackGenerals,'attack'),defense:hard?d.defense:teamPower(defenseGenerals,'defense'),distance,hardDefense:hard});
-    w.result=result;
+    if(!hard)selected(d,body.indices);
+    w.defenderIndices=hard?[]:[...body.indices];w.hardDefense=hard;
+    w.phase='conceal';w.waitingId=a.id;w.selections={};
+    room.event='双方依次暗盖战争牌，全部确认后揭示。';return;
+  }
+  if(w.phase==='conceal'){
+    if(body.choice!=='card')throw Error('请选择暗盖牌或不出牌');
+    const id=body.instanceId;
+    if(id!==null&&typeof id!=='string')throw Error('无效的卡牌');
+    const card=id===null?null:player.hand.find(c=>c.instanceId===id);
+    const allowed=player.id===a.id?['T05','T08','N02','N30']:['N08','N10','N11','N12','N29','N30'];
+    if(id!==null&&(!card||!allowed.includes(card.id)||player.gold<card.cost))throw Error('卡牌不可使用或黄金不足');
+    w.selections[player.id]=id;
+    if(player.id===a.id){w.waitingId=d.id;room.event='进攻方已确认暗盖，等待防守方。';return;}
+    const ac=w.selections[a.id]===null?null:a.hand.find(c=>c.instanceId===w.selections[a.id]);
+    const dc=w.selections[d.id]===null?null:d.hand.find(c=>c.instanceId===w.selections[d.id]);
+    for(const [owner,c] of [[a,ac],[d,dc]])if(c){owner.gold-=c.cost;owner.hand.splice(owner.hand.indexOf(c),1);owner.discard.push(c);}
+    const revealed=`暗盖揭示：${a.name} ${ac?ac.name:'不出牌'}；${d.name} ${dc?dc.name:'不出牌'}。`;
+    const attackGenerals=selected(a,w.attackerIndices),defenseGenerals=w.hardDefense?[]:selected(d,w.defenderIndices);
     for(const g of [...attackGenerals,...defenseGenerals]){g.remaining=g.cooldown;g.cooldownStart=room.turnSerial;}
+    if(dc?.id==='N29'&&ac?.id!=='N30'){
+      for(const g of attackGenerals)defeat(a,g);
+      room.event=revealed+'鸣金收兵生效，进攻武将战败，战争结束。';room.war=null;return;
+    }
+    const distance=seatDistance(room.players.filter(p=>p.health>0).map(p=>p.id),a.id,d.id);
+    const penalty=Math.max(0,(ac?.id==='T05'?0:distance-1)-(ac?.id==='N02'?1:0))+(dc?.id==='N11'?2:0);
+    const attack=teamPower(attackGenerals,'attack')+(ac?.id==='T08'?3:ac?.id==='N02'?2:0)-(dc?.id==='N12'?2:0);
+    const defense=(w.hardDefense?d.defense:teamPower(defenseGenerals,'defense'))+(dc?.id==='N08'?3:dc?.id==='N10'?5:0);
+    const result=calculateBattle({attack,defense,distance:penalty+1,hardDefense:w.hardDefense});
+    w.result=result;
     if(result.attackerGeneralDefeated)for(const g of attackGenerals)defeat(a,g);
     if(result.defenderGeneralDefeated)for(const g of defenseGenerals)defeat(d,g);
-    d.health-=result.defenderDamage;room.event=`战争结算：进攻 ${result.attackPower}，防守 ${result.defensePower}；${d.name}损失 ${result.defenderDamage} 生命。`;
+    d.health-=result.defenderDamage;room.event=revealed+`战争结算：进攻 ${result.attackPower}，防守 ${result.defensePower}；${d.name}损失 ${result.defenderDamage} 生命。`;
     if(d.health<=0){finishElimination(room,d,a);room.war=null;return;}
     if(result.canPursueOrClaim){w.phase='aftermath';w.waitingId=d.id;}else room.war=null;return;
   }

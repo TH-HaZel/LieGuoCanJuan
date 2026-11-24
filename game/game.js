@@ -36,7 +36,7 @@ function buy(room,player,id){
   if(!player.market.includes(id))throw new Error('该武将不是本轮候选');
   const index=player.marketPool.findIndex(g=>g.id===id);
   if(index<0)throw new Error('武将不可购买');
-  const g=player.marketPool[index];if(player.gold<g.cost)throw new Error('黄金不足');
+  const g=player.marketPool[index];if(g.source!=='store')throw Error('该武将不能购买');if(player.gold<g.cost)throw new Error('黄金不足');
   player.gold-=g.cost;player.marketPool.splice(index,1);player.market=player.market.filter(x=>x!==id);player.purchased=true;
   const overflow=receiveGeneral(player,{...g,instanceId:crypto.randomUUID(),deployAfterTurn:player.turnsStarted+1});
   room.event=`${player.name}购买了武将。`;

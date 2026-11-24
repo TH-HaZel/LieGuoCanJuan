@@ -3,13 +3,14 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const rooms = require('./server/rooms');
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.PORT || 3100);
 const files = {'/':['index.html','text/html; charset=utf-8'],'/client.js':['client.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8']};
 function json(res, status, value) {res.writeHead(status, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));}
 function nameOf(input) {const name=String(input || '').trim(); if (!name || name.length>20) throw new Error('请输入 1～20 个字符的昵称'); return name;}
 const server = http.createServer(async (req,res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
+    if (req.method === 'GET' && url.pathname === '/api/generals') {json(res,200,require('./game/deck').generals.map(({id,name,source})=>({id,name,source})));return;}
     if (req.method === 'GET' && files[url.pathname]) {
       const [file,mime]=files[url.pathname]; fs.readFile(path.join(__dirname,'public',file),(err,data)=>{if(err){res.writeHead(500);res.end('读取失败');return;}res.writeHead(200,{'Content-Type':mime,'Cache-Control':'no-store'});res.end(data);});return;
     }

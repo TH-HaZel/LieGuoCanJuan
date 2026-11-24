@@ -1,402 +1,461 @@
 [
-  {
-    "id": "T01",
-    "name": "房谋杜断",
-    "category": "唐朝专属",
-    "cost": 4,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：4 金\n\n类型：行动牌。\n\n效果：\n\n抽取 2 张牌，然后弃置 1 张手牌。\n\n牌堆不足时，抽取剩余牌即可。"
-  },
-  {
-    "id": "T02",
-    "name": "姚宋新政",
-    "category": "唐朝专属",
-    "cost": 2,
-    "rarity": "低级",
-    "description": "稀有度：低级\n\n费用：2 金\n\n类型：经济牌。\n\n效果：\n\n获得 5 金。\n\n净收益为 3 金。"
-  },
-  {
-    "id": "T03",
-    "name": "千金济世",
-    "category": "唐朝专属",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：5 金\n\n类型：恢复牌。\n\n效果：\n\n选择一名己方武将，恢复 1 点生命。\n\n要求：\n- 当前生命值大于 0。\n- 不得超过初始生命上限。\n- 无法治疗濒死武将。"
-  },
-  {
-    "id": "T04",
-    "name": "天策调兵",
-    "category": "唐朝专属",
-    "cost": 9,
-    "rarity": "高级",
-    "description": "稀有度：高级\n\n费用：9 金\n\n类型：军事调度牌。\n\n效果：\n\n选择一名己方已部署且处于冷却中的武将，将冷却值直接变为 0。"
-  },
-  {
-    "id": "T05",
-    "name": "安西军令",
-    "category": "唐朝专属",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：5 金\n\n类型：战争牌。\n\n效果：\n\n作为进攻方使用时，本次战争完全无视距离惩罚。"
-  },
-  {
-    "id": "T06",
-    "name": "贞观纳谏",
-    "category": "唐朝专属",
-    "cost": 3,
-    "rarity": "低级",
-    "description": "稀有度：低级\n\n费用：3 金\n\n类型：解控牌。\n\n效果：\n\n移除一名己方武将或己方国家的一项可移除负面状态。\n\n不能：\n- 恢复已损失生命。\n- 复活阵亡武将。\n- 恢复被永久降低的基础属性。"
-  },
-  {
-    "id": "T07",
-    "name": "府兵制",
-    "category": "唐朝专属",
-    "cost": 3,
-    "rarity": "低级",
-    "description": "稀有度：低级\n\n费用：3 金\n\n类型：经济 / 军事牌。\n\n效果：\n\n下一次部署武将时，部署费用减少 3 金，最低为 0。\n\n效果在部署成功或当前大轮结束时失效。"
-  },
-  {
-    "id": "T08",
-    "name": "玄甲军",
-    "category": "唐朝专属",
-    "cost": 6,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：6 金\n\n类型：战争牌。\n\n效果：\n\n本次进攻攻击力 +3。"
-  },
-  {
-    "id": "T09",
-    "name": "河西转运",
-    "category": "唐朝专属",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：5 金\n\n类型：经济牌。\n\n效果：\n\n下一次购买额外武将时，购买费用减少 4 金，最低为 0。\n\n效果在购买成功或当前大轮结束时失效。"
-  },
-  {
-    "id": "T10",
-    "name": "四海归心",
-    "category": "唐朝专属",
-    "cost": 4,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：4 金\n\n类型：外交 / 经济牌。\n\n效果：\n\n若当前存在同盟国家：\n- 自己获得 3 金。\n- 同盟国家获得 2 金。\n\n没有同盟时不能使用。"
-  },
-  {
-    "id": "T11",
-    "name": "军功簿",
-    "category": "唐朝专属",
-    "cost": 6,
-    "rarity": "高级",
-    "description": "稀有度：高级\n\n费用：6 金\n\n类型：永久增益牌。\n\n效果：\n\n选择一名己方武将。\n\n其下一次参与战争或中立资源争夺后，如果仍然存活，可以选择攻击力或防御力永久 +1。\n\n永久增益可以被专门的技能牌移除。"
-  },
-  {
-    "id": "T12",
-    "name": "以战养战",
-    "category": "唐朝专属",
-    "cost": 4,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：4 金\n\n类型：延时状态牌。\n\n效果：\n\n下一次普通战争胜利时，获得 5 金。\n\n无论胜负，本效果均在下一次普通战争结束后失效。"
-  },
-  {
-    "id": "T13",
-    "name": "凌烟阁",
-    "category": "唐朝专属",
-    "cost": 9,
-    "rarity": "高级",
-    "description": "稀有度：高级\n\n费用：9 金\n\n类型：永久增益牌。\n\n效果：\n\n选择一名己方武将。\n\n要求该武将至少经历过两次实际结算的战斗。\n\n其攻击力和防御力永久各增加 1。\n\n该效果可以被移除永久增益的技能牌针对。"
-  },
-  {
-    "id": "T14",
-    "name": "开元盛世",
-    "category": "唐朝专属",
-    "cost": 7,
-    "rarity": "高级",
-    "description": "稀有度：高级\n\n费用：7 金\n\n类型：国家恢复 / 经济牌。\n\n效果：\n\n国家恢复 3 点生命，并获得 2 金。\n\n不能超过国家初始生命上限。"
-  },
-  {
-    "id": "T15",
-    "name": "玄武门之变",
-    "category": "唐朝专属",
-    "cost": 7,
-    "rarity": "高级",
-    "description": "稀有度：高级\n\n费用：7 金\n\n类型：战争牌。\n\n效果：\n\n本次进攻攻击力 +4。\n\n如果本次战争进攻方战败，主将额外损失 1 点生命。"
-  },
-  {
-    "id": "T16",
-    "name": "丝路商贸",
-    "category": "唐朝专属",
-    "cost": 3,
-    "rarity": "低级",
-    "description": "稀有度：低级\n\n费用：3 金\n\n类型：经济 / 外交牌。\n\n效果：\n\n自己获得 4 金。\n\n选择一个其他存活国家，该国获得 1 金。"
-  },
-  {
-    "id": "T17",
-    "name": "从谏如流",
-    "category": "唐朝专属",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "稀有度：中级\n\n费用：5 金\n\n类型：防护 / 战争牌。\n\n效果：\n\n选择一名己方武将。\n\n其下一次战争免疫一次敌方技能造成的技能封锁或属性降低效果。\n\n效果触发后失效，或在两个大轮后失效。"
-  },
-  {
-    "id": "T18",
-    "name": "万国来朝",
-    "category": "唐朝专属",
-    "cost": 6,
-    "rarity": "高级",
-    "description": "稀有度：高级\n\n费用：6 金\n\n类型：公共事件牌。\n\n效果：\n\n打出后公开。\n\n其他所有存活国家可以选择支付 2 金，抽取 1 张自己的牌。\n\n每有一个国家接受：\n- 使用者额外获得 1 金。\n\n使用者自己额外抽取 1 张牌。\n\n参与国家没有手牌上限之外的特殊待遇，正常遵守抽牌规则。"
-  },
-  {
-    "id": "N01",
-    "name": "破釜沉舟",
-    "category": "攻击增益",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n本次进攻攻击力 +3。\n\n若本次战争进攻方战败，主将额外损失 1 点生命。"
-  },
-  {
-    "id": "N02",
-    "name": "兵贵神速",
-    "category": "攻击增益",
-    "cost": 4,
-    "rarity": "中级",
-    "description": "中级 · 4 金\n\n本次进攻攻击力 +2，距离惩罚减少 1，最低为 0。"
-  },
-  {
-    "id": "N03",
-    "name": "背水一战",
-    "category": "攻击增益",
-    "cost": 7,
-    "rarity": "高级",
-    "description": "高级 · 7 金\n\n本次进攻攻击力 +4。\n\n若本次战争进攻方战败，己方国家额外损失 2 点生命。"
-  },
-  {
-    "id": "N04",
-    "name": "破甲冲锋",
-    "category": "攻击增益",
-    "cost": 6,
-    "rarity": "中级",
-    "description": "中级 · 6 金\n\n本次进攻攻击力 +2，同时使敌方主将防御力 -1。"
-  },
-  {
-    "id": "N05",
-    "name": "铁骑突袭",
-    "category": "攻击增益",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n本次进攻攻击力 +2。\n\n若本次战争获胜，额外获得 2 金。"
-  },
-  {
-    "id": "N06",
-    "name": "先声夺人",
-    "category": "攻击增益",
-    "cost": 3,
-    "rarity": "低级",
-    "description": "低级 · 3 金\n\n本次进攻攻击力 +1。\n\n若己方主将的基础攻击力低于敌方主将，则额外攻击力 +2。"
-  },
-  {
-    "id": "N07",
-    "name": "决战千里",
-    "category": "攻击增益",
-    "cost": 8,
-    "rarity": "高级",
-    "description": "高级 · 8 金\n\n本次进攻攻击力 +3，完全无视距离惩罚。"
-  },
-  {
-    "id": "N08",
-    "name": "坚壁清野",
-    "category": "防御增益",
-    "cost": 4,
-    "rarity": "低级",
-    "description": "低级 · 4 金\n\n本次防守防御力 +3。"
-  },
-  {
-    "id": "N09",
-    "name": "以逸待劳",
-    "category": "防御增益",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n本次防守防御力 +2。\n\n若防守成功，额外获得 2 金。"
-  },
-  {
-    "id": "N10",
-    "name": "固若金汤",
-    "category": "防御增益",
-    "cost": 8,
-    "rarity": "高级",
-    "description": "高级 · 8 金\n\n本次防守防御力 +5。"
-  },
-  {
-    "id": "N11",
-    "name": "大雾弥江",
-    "category": "防御增益",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n天气牌。\n\n本次战争中，进攻方受到的距离惩罚额外 +2。\n\n仅防守方可以使用。"
-  },
-  {
-    "id": "N12",
-    "name": "暴雨泥泞",
-    "category": "防御增益",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n天气牌。\n\n本次战争中，进攻方攻击力 -2。\n\n仅防守方可以使用。"
-  },
-  {
-    "id": "N13",
-    "name": "雷雨交加",
-    "category": "防御增益",
-    "cost": 6,
-    "rarity": "中级",
-    "description": "中级 · 6 金\n\n天气牌。\n\n本次战争中，双方通过临时战争增益牌获得的攻击力加成均减少 1，最低为 0。"
-  },
-  {
-    "id": "N14",
-    "name": "临阵不乱",
-    "category": "防御增益",
-    "cost": 4,
-    "rarity": "低级",
-    "description": "低级 · 4 金\n\n本次防守防御力 +1。\n\n若己方国家生命值不高于 15，则改为防御力 +3。"
-  },
-  {
-    "id": "N15",
-    "name": "商旅往来",
-    "category": "能力",
-    "cost": 2,
-    "rarity": "低级",
-    "description": "低级 · 2 金\n\n获得 5 金。"
-  },
-  {
-    "id": "N16",
-    "name": "临时征税",
-    "category": "能力",
-    "cost": 0,
-    "rarity": "低级",
-    "description": "低级 · 0 金\n\n国家损失 1 点生命，获得 6 金。\n\n国家生命值必须大于 1 才能使用。"
-  },
-  {
-    "id": "N17",
-    "name": "诸国互市",
-    "category": "能力",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n公共事件牌。\n\n所有存活国家立即获得 2 金。\n\n使用者额外获得 2 金。"
-  },
-  {
-    "id": "N18",
-    "name": "密探来报",
-    "category": "能力",
-    "cost": 3,
-    "rarity": "中级",
-    "description": "中级 · 3 金\n\n选择一个其他国家，随机展示其一张手牌给使用者。\n\n仅使用者可以看到该牌。\n\n若对方没有手牌，则使用者获得 2 金。"
-  },
-  {
-    "id": "N19",
-    "name": "战后整顿",
-    "category": "能力",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n选择一名己方已部署武将。\n\n其下一次参与战争或中立资源争夺后，若仍然存活，冷却值减少 1，最低为 0。\n\n若两个大轮内没有触发，则失效。"
-  },
-  {
-    "id": "N20",
-    "name": "天下丰年",
-    "category": "能力",
-    "cost": 7,
-    "rarity": "高级",
-    "description": "高级 · 7 金\n\n公共事件牌。\n\n所有存活国家获得 3 金。\n\n使用者额外获得 2 金。"
-  },
-  {
-    "id": "N21",
-    "name": "休养生息",
-    "category": "状态",
-    "cost": 7,
-    "rarity": "高级",
-    "description": "高级 · 7 金\n\n延时恢复牌。\n\n从使用后的下一大轮开始，连续三个大轮开始时，国家依次恢复：\n\n- 第一次：3 点生命。\n- 第二次：2 点生命。\n- 第三次：1 点生命。\n\n不能超过国家初始生命上限。\n\n国家灭亡后效果终止。"
-  },
-  {
-    "id": "N22",
-    "name": "士气高涨",
-    "category": "状态",
-    "cost": 4,
-    "rarity": "低级",
-    "description": "低级 · 4 金\n\n选择一名己方武将。\n\n其下一次参与战争时，攻击力 +2。\n\n效果最多持续两个大轮。"
-  },
-  {
-    "id": "N23",
-    "name": "疲兵之策",
-    "category": "状态",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n选择一名敌方武将。\n\n其下一次参与战争时，攻击力 -2。\n\n效果最多持续两个大轮。"
-  },
-  {
-    "id": "N24",
-    "name": "封锁粮道",
-    "category": "状态",
-    "cost": 7,
-    "rarity": "高级",
-    "description": "高级 · 7 金\n\n选择一个敌方国家。\n\n该国下一大轮的公共基础黄金收入减少 2 金，最低为 0。\n\n不影响国家专属额外黄金和技能牌收入。"
-  },
-  {
-    "id": "N25",
-    "name": "禁军令",
-    "category": "状态",
-    "cost": 8,
-    "rarity": "高级",
-    "description": "高级 · 8 金\n\n选择一名敌方武将。\n\n其下一次战争中：\n- 无法使用自身技能。\n- 无法获得临时增益牌提供的属性强化。\n\n基础攻击、防御以及已有永久增益不受影响。"
-  },
-  {
-    "id": "N26",
-    "name": "大旱之年",
-    "category": "状态",
-    "cost": 8,
-    "rarity": "高级",
-    "description": "高级 · 8 金\n\n公共事件牌。\n\n所有其他存活国家在下一大轮的公共基础黄金收入减少 1 金。\n\n最低为 0。\n\n不影响国家专属收入和技能牌收入。"
-  },
-  {
-    "id": "N27",
-    "name": "釜底抽薪",
-    "category": "解场",
-    "cost": 5,
-    "rarity": "中级",
-    "description": "中级 · 5 金\n\n选择一名敌方武将，移除其一项临时正面增益。\n\n不能移除基础属性和永久增益。"
-  },
-  {
-    "id": "N28",
-    "name": "拨乱反正",
-    "category": "解场",
-    "cost": 4,
-    "rarity": "低级",
-    "description": "低级 · 4 金\n\n移除一项己方国家或武将的负面状态。\n\n不能恢复已经损失的生命值，不能复活武将。"
-  },
-  {
-    "id": "N29",
-    "name": "鸣金收兵",
-    "category": "解场",
-    "cost": 10,
-    "rarity": "高级",
-    "description": "高级 · 10 金\n\n仅防守方可以使用。\n\n使本次战争直接结束，进攻方战败。\n\n效果：\n- 进攻武将损失 1 点生命。\n- 进攻国家不受到本次战争伤害。\n- 防守方不能乘胜追击。\n- 不进行普通战斗数值结算。\n\n可以被反制牌抵消。"
-  },
-  {
-    "id": "N30",
-    "name": "识破",
-    "category": "解场",
-    "cost": 6,
-    "rarity": "高级",
-    "description": "高级 · 6 金\n\n战争暗盖牌。\n\n可以反制对方使用的一项清场牌。\n\n若对方没有使用清场牌，则本牌无效果。\n\n一张有效的《识破》即可抵消一项清场效果。\n\n即使被反制或没有反制目标，已支付的费用也不退还。"
-  },
-  {
-    "id": "N31",
-    "name": "削籍夺功",
-    "category": "解场",
-    "cost": 9,
-    "rarity": "高级",
-    "description": "高级 · 9 金\n\n选择一名敌方武将。\n\n移除其一项永久属性增益：\n\n- 攻击力永久 +1。\n- 或防御力永久 +1。\n\n不能降低武将原始基础属性。\n\n可以针对李勣通过成长获得的永久属性。"
-  },
-  {
-    "id": "N32",
-    "name": "全军整肃",
-    "category": "解场",
-    "cost": 8,
-    "rarity": "高级",
-    "description": "高级 · 8 金\n\n选择一名敌方武将。\n\n移除其所有当前生效的临时正面增益。\n\n不能移除永久增益、基础属性或武将自身技能。"
-  }
+    {
+        "id": "T01",
+        "name": "策令",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "medium",
+        "description": "抽取 2 张牌，然后弃置 1 张手牌。"
+    },
+    {
+        "id": "T02",
+        "name": "新政",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 2,
+        "rarity": "high",
+        "description": "下回合开始时，获得 5 金。"
+    },
+    {
+        "id": "T03",
+        "name": "济世",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "选择一名己方武将，恢复 1 点生命。\n\n要求：\n- 当前生命值大于 0。\n- 不得超过初始生命上限。\n- 无法治疗濒死武将。"
+    },
+    {
+        "id": "T04",
+        "name": "天策调兵",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 9,
+        "rarity": "high",
+        "description": "选择一名己方手牌中处于冷却中的武将，立即部署且重置冷却值。"
+    },
+    {
+        "id": "T05",
+        "name": "军令",
+        "country": "唐",
+        "variety": "战争",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "作为进攻方使用时，本次战争无视距离惩罚。"
+    },
+    {
+        "id": "T06",
+        "name": "开仓",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "medium",
+        "description": "移除一名己方武将或己方国家的一项可移除负面状态。\n\n不能：\n- 恢复已损失生命。\n- 复活阵亡武将。\n- 恢复被永久降低的基础属性。"
+    },
+    {
+        "id": "T07",
+        "name": "府兵制",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 6,
+        "rarity": "high",
+        "description": "下回合部署武将时，部署费用减少 50%，最低为 0。"
+    },
+    {
+        "id": "T08",
+        "name": "玄甲军",
+        "country": "唐",
+        "variety": "战争",
+        "cost": 2,
+        "rarity": "low",
+        "description": "本次进攻攻击力 +1。"
+    },
+    {
+        "id": "T09",
+        "name": "河西转运",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "medium",
+        "description": "下一次购买额外武将时，购买费用减少 25%，最低为 0。\n\n效果在购买成功或当前轮结束时失效。"
+    },
+    {
+        "id": "T10",
+        "name": "四海归心",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "medium",
+        "description": " 自己获得 2 金。\n- 若当前存在同盟国家，同盟国家获得 2 金。"
+    },
+    {
+        "id": "T11",
+        "name": "军功簿",
+        "country": "唐",
+        "variety": "能力",
+        "cost": 8,
+        "rarity": "legend",
+        "description": "选择一名己方武将。\n\n其下一次参与战争或中立资源争夺后，如果仍然存活，可以选择攻击力或防御力永久 +1。\n\n永久增益可以被专门的技能牌移除。"
+    },
+    {
+        "id": "T12",
+        "name": "以战养战",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "legend",
+        "description": "下一次普通战争胜利时，获得 5 金。\n\n无论胜负，本效果均在下一次普通战争结束后失效。"
+    },
+    {
+        "id": "T13",
+        "name": "黄沙百战",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "low",
+        "description": "选择一名己方武将。下次战斗若胜利则回复 1 点血量。"
+    },
+    {
+        "id": "T14",
+        "name": "开元盛世",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "国家恢复 3 点生命，并获得 2 金。\n\n不能超过国家初始生命上限。"
+    },
+    {
+        "id": "T15",
+        "name": "玄武门之变",
+        "country": "唐",
+        "variety": "能力",
+        "cost": 10,
+        "rarity": "legend",
+        "description": "若国家血量低于 20 不得打出，将 【李世民】和 【贞观之治】 加入牌库。"
+    },
+    {
+        "id": "T15(1)",
+        "name": "贞观之治",
+        "country": "唐",
+        "variety": "能力",
+        "cost": 20,
+        "rarity": "legend",
+        "description": "使总部获得“友方回合开始，抽一张牌，使总部获得 +2 防御力”"
+    },
+    {
+        "id": "T16",
+        "name": "丝路商贸",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "low",
+        "description": "自己获得 2 金，选择一个其他存活国家，该国获得 1 金。"
+    },
+    {
+        "id": "T17",
+        "name": "从谏如流",
+        "country": "唐",
+        "variety": "战争",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "选择一名己方武将。\n\n其下一次战争免疫一次敌方技能造成的技能封锁或属性降低效果。\n\n效果触发后失效，或在两轮后失效。"
+    },
+    {
+        "id": "T18",
+        "name": "万国来朝",
+        "country": "唐",
+        "variety": "技能",
+        "cost": 15,
+        "rarity": "legend",
+        "description": "抉择：失去 2 金或扣 2 国家血量，友方：获得所有相反的效果。"
+    },
+    {
+        "id": "N01",
+        "name": "破釜沉舟",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "本次进攻攻击力 +2。\n\n若本次战争你战败，所有将领额外损失 1 点生命。"
+    },
+    {
+        "id": "N02",
+        "name": "兵贵神速",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 4,
+        "rarity": "medium",
+        "description": "本次进攻攻击力 +1，距离惩罚减少 1，最低为 0。"
+    },
+    {
+        "id": "N03",
+        "name": "征赋收税",
+        "country": "全局",
+        "variety": "能力",
+        "cost": 7,
+        "rarity": "high",
+        "description": "国家血量立即减少 15。每回合开始时，多摸 1 张牌，获得 1 金。"
+    },
+    {
+        "id": "N04",
+        "name": "破甲",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 3,
+        "rarity": "low",
+        "description": "使敌方防御力 -1。"
+    },
+    {
+        "id": "N05",
+        "name": "铁骑突袭",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 7,
+        "rarity": "medium",
+        "description": "本次进攻攻击力 +2。\n\n若本次战争获胜，额外获得 2 金。"
+    },
+    {
+        "id": "N06",
+        "name": "先声夺人",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 4,
+        "rarity": "low",
+        "description": "本次进攻攻击力 +1。\n\n若己方主将的基础攻击力低于敌方主将，则额外攻击力 +2。"
+    },
+    {
+        "id": "N07",
+        "name": "决战千里",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 8,
+        "rarity": "high",
+        "description": "本次进攻攻击力 +3，完全无视距离惩罚。"
+    },
+    {
+        "id": "N08",
+        "name": "坚壁清野",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 4,
+        "rarity": "low",
+        "description": "本次防守防御力 +3。"
+    },
+    {
+        "id": "N09",
+        "name": "以逸待劳",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "本次防守防御力 +2。\n\n若防守成功，额外获得 2 金。"
+    },
+    {
+        "id": "N10",
+        "name": "固若金汤",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 8,
+        "rarity": "high",
+        "description": "本次防守防御力 +5。"
+    },
+    {
+        "id": "N11",
+        "name": "大雾弥江",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "天气牌。\n\n本次战争中，进攻方受到的距离惩罚额外 +2。\n\n仅防守方可以使用。"
+    },
+    {
+        "id": "N12",
+        "name": "暴雨泥泞",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "天气牌。\n\n本次战争中，进攻方攻击力 -2。\n\n仅防守方可以使用。"
+    },
+    {
+        "id": "N13",
+        "name": "雷雨交加",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 6,
+        "rarity": "medium",
+        "description": "天气牌。\n\n本次战争中，双方通过临时战争增益牌获得的攻击力加成均减少 1，最低为 0。"
+    },
+    {
+        "id": "N14",
+        "name": "临阵不乱",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 4,
+        "rarity": "low",
+        "description": "本次防守防御力 +1。\n\n若己方国家生命值不高于 15，则改为防御力 +3。"
+    },
+    {
+        "id": "N15",
+        "name": "商旅往来",
+        "country": "全局",
+        "variety": "能力",
+        "cost": 2,
+        "rarity": "low",
+        "description": "获得 5 金。"
+    },
+    {
+        "id": "N16",
+        "name": "临时征税",
+        "country": "全局",
+        "variety": "能力",
+        "cost": 0,
+        "rarity": "low",
+        "description": "国家损失 1 点生命，获得 6 金。\n\n国家生命值必须大于 1 才能使用。"
+    },
+    {
+        "id": "N17",
+        "name": "诸国互市",
+        "country": "全局",
+        "variety": "能力",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "公共事件牌。\n\n所有存活国家立即获得 2 金。\n\n使用者额外获得 2 金。"
+    },
+    {
+        "id": "N18",
+        "name": "密探来报",
+        "country": "全局",
+        "variety": "能力",
+        "cost": 3,
+        "rarity": "medium",
+        "description": "选择一个其他国家，随机展示其一张手牌给使用者。\n\n仅使用者可以看到该牌。\n\n若对方没有手牌，则使用者获得 2 金。"
+    },
+    {
+        "id": "N19",
+        "name": "战后整顿",
+        "country": "全局",
+        "variety": "能力",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "选择一名己方已部署武将。\n\n其下一次参与战争或中立资源争夺后，若仍然存活，冷却值减少 1，最低为 0。\n\n若两个大轮内没有触发，则失效。"
+    },
+    {
+        "id": "N20",
+        "name": "天下丰年",
+        "country": "全局",
+        "variety": "能力",
+        "cost": 7,
+        "rarity": "high",
+        "description": "公共事件牌。\n\n所有存活国家获得 3 金。\n\n使用者额外获得 2 金。"
+    },
+    {
+        "id": "N21",
+        "name": "休养生息",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 7,
+        "rarity": "high",
+        "description": "延时恢复牌。\n\n从使用后的下一大轮开始，连续三个大轮开始时，国家依次恢复：\n\n- 第一次：3 点生命。\n- 第二次：2 点生命。\n- 第三次：1 点生命。\n\n不能超过国家初始生命上限。\n\n国家灭亡后效果终止。"
+    },
+    {
+        "id": "N22",
+        "name": "士气高涨",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 4,
+        "rarity": "low",
+        "description": "选择一名己方武将。\n\n其下一次参与战争时，攻击力 +2。\n\n效果最多持续两个大轮。"
+    },
+    {
+        "id": "N23",
+        "name": "疲兵之策",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "选择一名敌方武将。\n\n其下一次参与战争时，攻击力 -2。\n\n效果最多持续两个大轮。"
+    },
+    {
+        "id": "N24",
+        "name": "封锁粮道",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 7,
+        "rarity": "high",
+        "description": "选择一个敌方国家。\n\n该国下一大轮的公共基础黄金收入减少 2 金，最低为 0。\n\n不影响国家专属额外黄金和技能牌收入。"
+    },
+    {
+        "id": "N25",
+        "name": "禁军令",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 8,
+        "rarity": "high",
+        "description": "选择一名敌方武将。\n\n其下一次战争中：\n- 无法使用自身技能。\n- 无法获得临时增益牌提供的属性强化。\n\n基础攻击、防御以及已有永久增益不受影响。"
+    },
+    {
+        "id": "N26",
+        "name": "大旱之年",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 8,
+        "rarity": "high",
+        "description": "公共事件牌。\n\n所有其他存活国家在下一大轮的公共基础黄金收入减少 1 金。\n\n最低为 0。\n\n不影响国家专属收入和技能牌收入。"
+    },
+    {
+        "id": "N27",
+        "name": "釜底抽薪",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 5,
+        "rarity": "medium",
+        "description": "选择一名敌方武将，移除其一项临时正面增益。\n\n不能移除基础属性和永久增益。"
+    },
+    {
+        "id": "N28",
+        "name": "拨乱反正",
+        "country": "全局",
+        "variety": "技能",
+        "cost": 4,
+        "rarity": "low",
+        "description": "移除一项己方国家或武将的负面状态。\n\n不能恢复已经损失的生命值，不能复活武将。"
+    },
+    {
+        "id": "N29",
+        "name": "鸣金收兵",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 10,
+        "rarity": "high",
+        "description": "使选定的国家直接失败，对其所有将领进行 -1 血。\n\n但不可对对方国家造成其他影响。"
+    },
+    {
+        "id": "N30",
+        "name": "识破",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 6,
+        "rarity": "high",
+        "description": "可以反制对方使用的一项清场牌。\n\n若对方没有使用清场牌，则本牌无效果。\n\n一张有效的《识破》即可抵消一项清场效果。\n\n即使被反制或没有反制目标，已支付的费用也不退还。"
+    },
+    {
+        "id": "N31",
+        "name": "削籍夺功",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 9,
+        "rarity": "high",
+        "description": "选择一名敌方武将。\n\n移除其一项永久属性增益：\n\n- 攻击力永久 +1。\n- 或防御力永久 +1。\n\n不能降低武将原始基础属性。\n\n可以针对李勣通过成长获得的永久属性。"
+    },
+    {
+        "id": "N32",
+        "name": "全军整肃",
+        "country": "全局",
+        "variety": "战争",
+        "cost": 8,
+        "rarity": "high",
+        "description": "选择一名敌方武将。\n\n移除其所有当前生效的临时正面增益。\n\n不能移除永久增益、基础属性或武将自身技能。"
+    }
 ]

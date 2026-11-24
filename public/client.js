@@ -5,9 +5,9 @@ async function enter(endpoint, data){
   try {const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error);sessionStorage.setItem('lieguo-session',JSON.stringify(result));connect(result);}
   catch(error){$('error').textContent=error.message;}
 }
-const generalNames=['秦琼','薛仁贵','尉迟敬德','李勣','裴行俭','郭子仪','李嗣业','刘仁轨'];
-for(const [index,id] of ['initial','general1','general2'].entries()){generalNames.forEach((name,i)=>{const option=document.createElement('option');option.value=`G${String(i+1).padStart(2,'0')}`;option.textContent=name;$(id).append(option)});$(id).selectedIndex=index;}
-function marketOptions(prefix){return generalNames.map((name,i)=>`<label class="market-choice"><input type="checkbox" name="${prefix}-market" value="G${String(i+1).padStart(2,'0')}" ${i>=3?'checked':''}>${name}</label>`).join('');}
+let availableGenerals=[];
+function escapeText(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function marketOptions(prefix){return availableGenerals.filter(g=>g.source==='store').map((g,i)=>`<label class="market-choice"><input type="checkbox" name="${prefix}-market" value="${escapeText(g.id)}" ${i<5?'checked':''}>${escapeText(g.name)}</label>`).join('');}
 function marketSelection(prefix){return Array.from(document.querySelectorAll(`input[name="${prefix}-market"]:checked`),input=>input.value);}
 const poolSettings=document.createElement('fieldset');poolSettings.className='market-settings';poolSettings.innerHTML='<legend>额外武将池（最多 5 名）</legend>'+marketOptions('room');$('initial').closest('.row').append(poolSettings);
 const selection=()=>({initial:$('initial').value,deckGenerals:[$('general1').value,$('general2').value],marketIds:marketSelection('room')});
@@ -51,7 +51,7 @@ function renderWar(state){
     detail.id='war-target-label';detail.textContent=target?`目标：${target.name}`:'点击对方头像选择目标，再点击己方将领选择参战。';
     selectionLabel();
     button('确认宣战',()=>{if(!warTargetId||!selectedGenerals.size){$('message').textContent='请先点击对方头像和己方可出战将领';return;}action('war-start',{targetId:warTargetId,indices:[...selectedGenerals]});},true);
-    const note=document.createElement('small');note.textContent='基础测试：暂不含技能、暗盖和增援。';controls.append(note);
+    const note=document.createElement('small');note.textContent='基础测试：部分战争牌可暗盖，暂不含增援。';controls.append(note);
   }else{
     const attacker=nameOf(w.attackerId),defender=nameOf(w.defenderId);
     if(w.waitingId!==me.id)detail.textContent=`${attacker} 对 ${defender} · 等待对方回应`;
@@ -64,6 +64,15 @@ function renderWar(state){
     }else if(w.phase==='defense'){
       detail.textContent=`${attacker} 正在进攻。点击己方将领选择参战，或选择国家硬抗。`;selectionLabel();
       button('派将迎战',()=>{if(!selectedGenerals.size){$('message').textContent='请点击选择至少一名可出战武将';return;}action('war-respond',{choice:'general',indices:[...selectedGenerals]});},true);button('国家硬抗',()=>action('war-respond',{choice:'hard'}));
+    }else if(w.phase==='conceal'){
+      detail.textContent='选择一张战争牌暗盖，或选择不出牌。双方确认后一起揭示。';
+      const allowed=me.id===w.attackerId?['T05','T08','N02','N30']:['N08','N10','N11','N12','N29','N30'];
+      const select=document.createElement('select');select.setAttribute('aria-label','暗盖牌');
+      const pass=document.createElement('option');pass.value='';pass.textContent='不出牌';select.append(pass);
+      for(const card of me.hand.filter(c=>allowed.includes(c.id)&&c.cost<=me.gold)){
+        const option=document.createElement('option');option.value=card.instanceId;option.textContent=`${card.name} · 💰 ${card.cost}`;select.append(option);
+      }
+      controls.append(select);button('确认暗盖',()=>action('war-respond',{choice:'card',instanceId:select.value||null}),true);
     }else if(w.phase==='aftermath'){
       detail.textContent=`防守获胜：进攻 ${w.result.attackPower}，防守 ${w.result.defensePower}。可以追击或提出赔偿。`;
       const amount=amountInput();button('提出索赔',()=>action('war-respond',{choice:'claim',amount:Number(amount.value)}));button('乘胜追击',()=>action('war-respond',{choice:'pursue'}),true);
@@ -107,18 +116,18 @@ function renderHand(cards,turnsStarted){
   if(!cards.length){const empty=document.createElement('span');empty.className='hand-empty';empty.textContent='暂无手牌';hand.append(empty);return;}
   cards.forEach((card,index)=>{
     const isGeneral=card.kind==='general',button=document.createElement('button');
-    const rarityClass=({'低级':'rarity-low','中级':'rarity-mid','高级':'rarity-high'})[card.rarity]||'rarity-unset';
+    const rarityClass=({'低级':'rarity-low','中级':'rarity-mid','高级':'rarity-high',low:'rarity-low',medium:'rarity-mid',high:'rarity-high',legend:'rarity-legend'})[card.rarity]||'rarity-unset';
     button.className='hand-card '+rarityClass+(isGeneral?' hand-card-general':'');
     button.type='button';
     const top=document.createElement('span');top.className='hand-card-top';
-    const category=document.createElement('span');category.className='hand-card-category';category.textContent=isGeneral?'武将':(card.category||'技能牌');
+    const category=document.createElement('span');category.className='hand-card-category';category.textContent=[card.country,isGeneral?'武将':(card.variety||card.category||'技能牌')].filter(Boolean).join(' · ');
     const cost=document.createElement('span');cost.className='hand-card-cost';cost.textContent='💰 '+(isGeneral?card.deployCost:card.cost);
     top.append(cost,category);
     const name=document.createElement('strong');name.className='hand-card-name';name.textContent=card.name;
     const body=document.createElement('span');body.className='hand-card-body';
     if(isGeneral)body.textContent=`攻击 ${card.attack}  ·  防御 ${card.defense}\n生命 ${card.health}/${card.maxHealth}  ·  冷却 ${card.cooldown}`;
     else {const description=card.description||'';const effect=description.match(/(?:效果[：:]|本次|选择|获得|所有|使|若)/);body.textContent=(effect?description.slice(effect.index):description).replace(/^效果[：:]\s*/,'').trim();}
-    const foot=document.createElement('span');foot.className='hand-card-foot';foot.textContent=isGeneral?(card.deployAfterTurn>turnsStarted?'下回合可部署':'点击部署'):`${card.rarity||'技能牌'} · 点击查看`;
+    const foot=document.createElement('span');foot.className='hand-card-foot';foot.textContent=isGeneral?(card.deployAfterTurn>turnsStarted?'下回合可部署':'点击部署'):`${({'low':'低级','medium':'中级','high':'高级','legend':'传说'})[card.rarity]||card.rarity||'技能牌'} · 点击查看`;
     button.append(top,name,body,foot);button.title=isGeneral?'点击支付部署费用':card.description||card.name;
     button.onclick=()=>{if(isGeneral)action('deploy',{index});else showCardDetails(card);};
     hand.append(button);
@@ -203,9 +212,20 @@ function render(state){
 
 const localKey='lieguo-hotseat-v1';
 function saveLocal(){sessionStorage.setItem(localKey,JSON.stringify(localGame));}
-function generalOptions(selected){return generalNames.map((name,i)=>`<option value="G${String(i+1).padStart(2,'0')}" ${i===selected?'selected':''}>${name}</option>`).join('');}
+function generalOptions(selected){return availableGenerals.filter(g=>g.source==='primary').map((g,i)=>`<option value="${escapeText(g.id)}" ${i===selected?'selected':''}>${escapeText(g.name)}</option>`).join('');}
 function localFields(){const count=Number($('localCount').value);$('localPlayers').innerHTML=Array.from({length:count},(_,i)=>`<details class="local-player"><summary>玩家 ${i+1}</summary><div class="row"><label>昵称<input id="localName${i}" maxlength="20" value="玩家 ${i+1}"></label><label>初始武将<select id="localInitial${i}">${generalOptions(0)}</select></label><label>主牌组武将 1<select id="localGeneralA${i}">${generalOptions(1)}</select></label><label>主牌组武将 2<select id="localGeneralB${i}">${generalOptions(2)}</select></label></div><fieldset class="market-settings"><legend>额外武将池（最多 5 名）</legend>${marketOptions('local'+i)}</fieldset></details>`).join('');}
-$('localCount').onchange=localFields;localFields();
+$('localCount').onchange=localFields;
+for(const id of ['create','join','localStart'])$(id).disabled=true;
+fetch('/api/generals').then(response=>{if(!response.ok)throw Error('无法读取武将列表');return response.json();}).then(data=>{
+  if(!Array.isArray(data)||data.filter(g=>g.source==='primary').length<3)throw Error('主牌组武将不足，至少需要三名');
+  availableGenerals=data;
+  for(const [index,id] of ['initial','general1','general2'].entries()){
+    $(id).replaceChildren(...data.filter(g=>g.source==='primary').map(g=>{const option=document.createElement('option');option.value=g.id;option.textContent=g.name;return option;}));
+    $(id).selectedIndex=index;
+  }
+  poolSettings.innerHTML='<legend>额外武将池（最多 5 名）</legend>'+marketOptions('room');
+  localFields();for(const id of ['create','join','localStart'])$(id).disabled=false;
+}).catch(error=>{$('error').textContent='武将列表加载失败：'+error.message;});
 async function post(endpoint,data){const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error||'操作失败');return result;}
 function showHandoff(){++connectionVersion;if(source){source.close();source=null;}$('game').hidden=true;$('lobby').hidden=true;$('handoff').hidden=false;$('hand').replaceChildren();warPanel.replaceChildren();selectedGenerals.clear();selectionContext='';warTargetId=null;marketPanel.hidden=true;marketPanel.replaceChildren();$('self').textContent='';$('generals').textContent='';$('handoffName').textContent=localGame.players[localGame.index].name;}
 $('localStart').onclick=async()=>{
@@ -227,10 +247,12 @@ function compactLobby(){
   const config=document.createElement('section');config.className='lobby-config';config.hidden=true;
   const configTitle=document.createElement('h2');
   const content=document.createElement('div');content.className='lobby-config-content';
+  const stash=document.createElement('div');stash.hidden=true;
   const back=document.createElement('button');back.type='button';back.textContent='← 返回主页';
   const roomNodes=[labels[0],notes[0],rows[0],rows[1]];
   const localNodes=[notes[1],labels[1],$('localStart'),$('localPlayers')];
   function openConfig(title,nodes){
+    stash.append(...roomNodes,...localNodes);
     $('error').textContent='';configTitle.textContent=title;
     if(nodes===localNodes){
       const left=document.createElement('div');left.className='local-config-main';left.append(nodes[0],nodes[1],nodes[2]);
@@ -244,7 +266,8 @@ function compactLobby(){
     button.onclick=()=>openConfig(title,nodes);return button;
   }
   back.onclick=()=>{$('error').textContent='';config.hidden=true;home.hidden=false;};
-  for(const node of [...roomNodes,...localNodes])node.remove();
+  stash.append(...roomNodes,...localNodes);
+  lobby.append(stash);
   heading.textContent='🎴 列国残卷';
   home.append(entry('创建或加入房间',roomNodes),entry('单机轮流测试',localNodes));
   config.append(back,configTitle,content);
