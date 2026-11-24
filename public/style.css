@@ -1,1 +1,158 @@
 *{box-sizing:border-box}body{margin:0;background:#f1f6f9;color:#293c48;font:16px/1.6 system-ui,'Microsoft YaHei',sans-serif}header{height:64px;padding:0 28px;border-bottom:1px solid #d9e6ec;background:#ffffffb8;display:flex;gap:14px;align-items:center}header b{font-size:20px;letter-spacing:.08em}header span{font-size:14px;color:#718792}main{max-width:1200px;margin:auto;padding:28px 24px}h1{font-size:22px;margin:0 0 24px}h2{font-size:16px;margin:0 0 12px;color:#526b78}button,input{font:inherit;border:1px solid #c7d7df;background:#fff;border-radius:8px;padding:9px 13px;color:inherit}button{cursor:pointer;transition:background .15s,border-color .15s}button:hover{background:#e8f4f8;border-color:#81adbe}button:focus-visible,input:focus-visible{outline:3px solid #8bbdce;outline-offset:2px}#create,#start,#endTurn{background:#d8edf3;border-color:#a7ccd8}input:focus{border-color:#8db7c8;outline:2px solid #d7edf4}#lobby{max-width:620px;margin:8vh auto 0;background:#fff;border:1px solid #dbe7ed;border-radius:14px;padding:30px;box-shadow:0 8px 28px #5273870c}label{display:grid;gap:8px;max-width:280px;font-size:14px;color:#536d7a}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}#roomInput{width:155px}#error{color:#af3c3c;min-height:1.5em}.room-info{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;color:#526b78;font-size:14px;padding-bottom:16px;border-bottom:1px solid #dbe7ed}.room-info b{color:#233d49;font-size:16px;letter-spacing:.08em}#connection{white-space:nowrap}.opponents{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:24px 0;min-height:60px}.player{border:1px solid #d2e2e9;border-radius:9px;padding:10px 14px;background:#fff;max-width:290px;line-height:1.8;font-size:14px}.middle{height:165px;display:grid;place-items:center;color:#91a4ad;border-top:1px solid #e1ebef;border-bottom:1px solid #e1ebef}.lower,.bottom{display:grid;grid-template-columns:1fr 1fr;gap:36px;padding-top:22px;margin-top:10px}.lower>div,.bottom>div{min-height:74px}.lower>div:nth-child(2){padding:12px 16px;background:#ffffffa8;border-radius:8px}.lower p{margin:0;color:#526b78}#self{padding-top:25px;line-height:2}#generals,#hand{color:#91a2ac}[hidden]{display:none!important}@media(max-width:600px){header{padding:0 16px}main{padding:20px 14px}#lobby{margin:4vh auto;padding:22px}.lower,.bottom{gap:15px}.player{max-width:100%}}
+#handoff{max-width:620px;margin:8vh auto;background:#fff;border:1px solid #dbe7ed;border-radius:14px;padding:30px}#localPlayers{margin:16px 0}.local-player{border:1px solid #dbe7ed;border-radius:9px;margin:12px 0;padding:12px}.local-player .row{margin-top:8px}select{font:inherit;border:1px solid #c7d7df;background:#fff;border-radius:8px;padding:8px;color:inherit}#localStart,#handoffReveal{background:#d8edf3;border-color:#a7ccd8}
+
+/* 手牌保持清晰可读，牌面内容超出时可点击查看完整说明。 */
+.bottom{grid-template-columns:minmax(180px, .8fr) minmax(0, 2fr)}
+#hand{display:flex;gap:10px;overflow-x:auto;padding:8px 3px 16px;color:#293c48;align-items:stretch}
+.hand-empty{color:#91a2ac;padding:12px 0}
+.hand-card{flex:0 0 148px;min-height:205px;padding:12px;display:flex;flex-direction:column;gap:9px;text-align:left;white-space:normal;background:#fff;border:1px solid #bfd0d8;border-radius:9px;box-shadow:0 3px 9px #243b4a0d}
+.hand-card:hover{background:#f8fcfd;border-color:#79a9b7;transform:translateY(-3px)}
+/* 桌面布局：对手在上，自己的信息靠左，事件在中央。 */
+#game{display:grid;grid-template-columns:190px minmax(0,1fr);grid-template-areas:"room room" "opponents opponents" "field middle" "self event" "actions actions";grid-template-rows:auto auto minmax(100px,1fr) auto auto;gap:12px;min-height:calc(100vh - 120px)}
+#game>.room-info{grid-area:room;justify-content:center;border:0}
+#game>.opponents{grid-area:opponents;justify-content:flex-start;margin:0;gap:8px}
+#game>.middle{grid-area:middle;height:auto;min-height:120px;border:0}
+#game>.lower,#game>.bottom{display:contents}
+#game>.lower>div:first-child{grid-area:field;align-self:end;padding:10px;background:#ffffffa8;border:1px solid #d2e2e9;border-radius:8px}
+#game>.lower>div:nth-child(2){grid-area:event;justify-self:center;align-self:end;text-align:center;background:transparent}
+#game #self{grid-area:self;align-self:end;padding:10px;background:#ffffffa8;border:1px solid #d2e2e9;border-radius:8px}
+#game>.row{grid-area:actions;margin:0}
+/* 屏幕底部手牌区 */
+#game{padding-bottom:215px}
+#game .bottom>div:nth-child(2){position:fixed;z-index:5;left:0;right:0;bottom:0;min-width:0;padding:8px 20px 4px;background:#eef3e9;border-top:1px solid #cbd8c4;box-shadow:0 -3px 12px #263f3014}
+#game .bottom>div:nth-child(2)>h2{margin:0;font-size:13px;color:#677b6a}
+#game #hand{justify-content:safe center;gap:8px;padding:6px 0;overflow-x:auto}
+.card-detail-overlay{position:fixed;z-index:20;inset:0;display:grid;place-items:center;padding:18px;background:#1f2e2780}
+.card-detail{width:min(420px,100%);max-height:80vh;overflow:auto;background:#fafcf8;border:1px solid #bacbb9;border-radius:10px;padding:20px;box-shadow:0 12px 32px #1d302640}
+.card-detail h2{margin:0 0 12px;color:#31453a;font-size:20px}
+.card-detail p{white-space:pre-wrap;line-height:1.6;color:#43554a}
+.card-detail small{display:block;margin:14px 0;color:#829085}
+.card-detail button{padding:7px 18px}
+/* 手牌重叠摆放；悬停或键盘选中时抬起并展开。 */
+#game #hand{justify-content:flex-start;overflow-x:auto;overflow-y:hidden;height:100px;padding:8px 12px 0}
+#game #hand .hand-card{position:relative;flex:0 0 125px;height:170px;min-height:170px;margin-right:-48px;transition:transform .15s,margin .15s}
+#game #hand .hand-card:last-child{margin-right:0}
+#game #hand .hand-card:hover,#game #hand .hand-card:focus-visible{z-index:2;margin-right:4px}
+#game #hand .hand-card-name{font-size:15px}
+#game #hand .hand-card-body{font-size:12px;-webkit-line-clamp:4}
+@media(max-width:600px){#game{grid-template-columns:1fr;grid-template-areas:"room" "opponents" "middle" "event" "field" "self" "actions";grid-template-rows:auto}#game>.middle{min-height:70px}#game #hand .hand-card{flex-basis:110px;min-height:155px;margin-right:-40px}}
+/* 紧凑手牌区：完整显示牌面，内容过长可点击查看。 */
+body #game{padding-bottom:175px}
+#game .bottom>div:nth-child(2){padding:4px 12px 2px}
+#game .bottom>div:nth-child(2)>h2{margin:0;font-size:12px;line-height:1.3}
+#game #hand{height:auto;min-height:0;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding:4px 2px 6px;gap:6px}
+#game #hand .hand-card{flex:0 0 105px;height:140px;min-height:140px;margin-right:0;padding:7px;gap:4px;transform:none}
+#game #hand .hand-card:hover,#game #hand .hand-card:focus-visible{margin-right:0;transform:none}
+#game #hand .hand-card-top{font-size:11px}
+#game #hand .hand-card-name{font-size:14px}
+#game #hand .hand-card-body{font-size:11px;line-height:1.3;-webkit-line-clamp:4}
+#game #hand .hand-card-foot{font-size:10px;padding-top:3px}
+/* 玩家和武将靠左，结束回合靠右。 */
+#game>.lower>div:first-child{position:fixed;z-index:4;left:16px;bottom:84px;width:180px;max-height:40vh;overflow:auto;padding:6px;background:transparent;border:0}
+#game>.lower>div:first-child>h2{font-size:12px;margin:0 0 4px}
+#game #generals{display:flex;flex-wrap:wrap;gap:4px}
+.general-mini{display:flex;flex-direction:column;gap:2px;width:80px;padding:6px;background:#f8faf5;border:1px solid #b8cbb8;border-radius:5px;color:#405449;font-size:11px;line-height:1.3}
+.general-mini strong{font-size:13px}
+#game #self{position:fixed;z-index:4;left:16px;bottom:12px;width:180px;max-height:68px;overflow:auto;padding:6px 8px;background:#f8faf5;border:1px solid #cbd8c4;border-radius:6px;font-size:12px;line-height:1.4}
+#game>.row{position:fixed;z-index:6;right:16px;bottom:16px;margin:0}
+#game .bottom>div:nth-child(2){left:208px;right:150px;width:auto}
+@media(max-width:600px){#game>.lower>div:first-child{left:8px;bottom:76px;width:120px}#game #self{left:8px;bottom:8px;width:120px}#game>.row{right:8px;bottom:8px}#game .bottom>div:nth-child(2){left:136px;right:105px}.general-mini{width:68px}}
+/* 玩家头像、状态和武将 */
+#game #self{display:flex;align-items:center;gap:7px;max-height:78px}
+.player-avatar{flex:none;display:grid;place-items:center;width:42px;height:42px;border:2px solid #8ca494;border-radius:50%;background:#edf4e9;color:#536d59;font-size:19px;font-weight:700}
+.player-info{display:flex;flex-direction:column;min-width:0;gap:2px}
+.player-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.player-statuses{display:flex;align-items:center;gap:10px}
+.health-heart{position:relative;display:grid;place-items:center;width:31px;height:28px;color:#fff;isolation:isolate}
+.health-heart:before{content:'';position:absolute;inset:0;z-index:-1;clip-path:polygon(50% 95%,5% 48%,3% 28%,10% 12%,25% 5%,39% 9%,50% 21%,61% 9%,75% 5%,90% 12%,97% 28%,95% 48%);background:linear-gradient(to top,#c84040 var(--health),#d9dfd7 var(--health));}
+.health-value{font-size:11px;font-weight:700;text-shadow:0 1px 2px #333}
+.player-gold,.hand-card-cost{display:inline-flex;align-items:center;gap:4px}
+.player-buffs{color:#718274;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#game .general-mini{position:relative;width:78px;min-height:86px;padding:7px 6px;background:#fbfcf8;border:1px solid #b7cab9;border-top:3px solid #76977d;border-radius:5px;box-shadow:0 2px 5px #334d3914;line-height:1.4}
+#game .general-mini strong{color:#344e3a;font-size:13px;border-bottom:1px solid #e0eadf;padding-bottom:3px;margin-bottom:2px}
+#game .general-mini span{color:#607466;font-size:11px}
+/* 对手公开信息 */
+#opponents .opponent{min-width:190px;max-width:270px;padding:8px;line-height:1.4}
+.opponent-header{display:flex;align-items:center;gap:7px}
+.opponent .player-avatar{width:36px;height:36px;font-size:17px}
+.opponent-hand{font-size:11px;color:#718274;white-space:nowrap}
+.opponent-generals{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+/* 首页左右两栏 */
+#lobby{max-width:1100px;margin:3vh auto;display:grid;grid-template-columns:minmax(250px,1fr) minmax(300px,1fr);column-gap:30px;align-items:start}
+#lobby>h1,#lobby>label:first-of-type,#lobby>p:first-of-type,#lobby>.row:first-of-type{grid-column:1}
+#lobby>h2,#lobby>p:nth-of-type(2),#lobby>label:nth-of-type(2),#localPlayers,#localStart{grid-column:2}
+#lobby>h1,#lobby>h2{grid-row:1;margin:0 0 12px}
+#lobby>label:first-of-type,#lobby>p:nth-of-type(2){grid-row:2}
+#lobby>p:first-of-type,#lobby>label:nth-of-type(2){grid-row:3}
+#lobby>.row:first-of-type,#localPlayers{grid-row:4}
+#lobby>.row:nth-of-type(2){grid-column:1;grid-row:5}
+#localStart{grid-row:6;justify-self:start}
+#lobby>hr{display:none}
+#lobby>#error{grid-column:1/-1;grid-row:7}
+@media(max-width:760px){#lobby{display:block;max-width:620px}#lobby>h2{margin-top:24px}}
+/* 对手信息和武将在空地上展开。 */
+#opponents .opponent{min-width:0;max-width:none;padding:0;background:transparent;border:0;display:flex;align-items:flex-start;gap:8px}
+.opponent-header{flex:none;max-width:180px}
+.opponent-generals{display:flex;flex-wrap:wrap;gap:4px;margin:0;max-width:360px}
+#opponents{align-items:flex-start;gap:18px;flex-wrap:wrap}
+/* 首页折叠入口 */
+#lobby{display:block;max-width:960px;margin:5vh auto}
+#lobby>h1{margin:0 0 20px}
+.lobby-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.lobby-panel{background:#f8faf7;border:1px solid #d3e1d6;border-radius:8px;min-width:0}
+.lobby-panel summary{cursor:pointer;padding:15px;font-size:16px;font-weight:600;color:#405b49}
+.lobby-panel-content{padding:0 15px 15px}
+.lobby-panel-content .row{margin-top:10px}
+.lobby-panel-content p{font-size:13px;color:#718274}
+@media(max-width:760px){.lobby-options{grid-template-columns:1fr}}
+/* 玩家配置按需展开。 */
+.local-player summary{cursor:pointer;font-weight:600;color:#405b49}
+#localStart{margin-top:12px}
+/* 单机配置：左侧控制，右侧玩家配置。 */
+.lobby-config-content.local-config-columns{max-width:none;display:grid;grid-template-columns:minmax(190px,0.8fr) minmax(300px,1.2fr);gap:24px;align-items:start}
+.local-config-players #localPlayers{margin:0}
+@media(max-width:700px){.lobby-config-content.local-config-columns{grid-template-columns:1fr}}
+/* 双人对局时，唯一的对手居中。 */
+#opponents:has(>.opponent:only-child){justify-content:center}
+/* 房间状态放在标题栏，事件区位于右侧。 */
+#game>.room-info{position:fixed;z-index:8;top:0;right:20px;height:64px;padding:0;display:flex;justify-content:flex-end;gap:16px;border:0;font-size:13px}
+#game>.lower>div:nth-child(2){position:fixed;z-index:4;right:20px;top:95px;bottom:210px;width:200px;max-height:none;overflow:auto;padding:10px;text-align:left;background:#ffffffaa;border:1px solid #d4e0d7;border-radius:7px}
+#game>.row{right:34px;bottom:185px}
+@media(max-width:700px){#game>.room-info{right:10px;gap:6px;font-size:11px;max-width:65%;overflow:auto;white-space:nowrap}#game>.lower>div:nth-child(2){right:8px;top:80px;bottom:200px;width:130px;font-size:12px}#game>.row{right:12px;bottom:175px}}
+/* 将领在手牌上方，事件靠右上。 */
+#game>.lower>div:first-child{left:208px;right:150px;bottom:165px;width:auto;max-height:none;overflow:visible}
+#game #generals{justify-content:center;flex-wrap:nowrap;overflow-x:auto}
+#game #self{left:28px}
+#game>.lower>div:nth-child(2){top:78px;right:20px;bottom:auto;width:200px;max-height:160px}
+#game>.row{right:70px;bottom:155px}
+@media(max-width:700px){#game>.lower>div:first-child{left:136px;right:105px;bottom:160px;width:auto}#game #self{left:16px}#game>.lower>div:nth-child(2){top:72px;right:8px;width:130px;max-height:120px}#game>.row{right:32px;bottom:150px}}
+/* 首页入口和独立配置页面 */
+.lobby-entry{width:100%;min-height:58px;font-size:16px;font-weight:600;background:#f8faf7;border:1px solid #d3e1d6;color:#405b49}
+.lobby-config>h2{margin:18px 0 12px;font-size:18px}
+.lobby-config-content{max-width:780px}
+.lobby-config-content .row{margin-top:10px}
+.lobby-config-content p{color:#718274;font-size:13px}
+/* 透明的底部区域，手牌按数量向中间叠放。 */
+#game .bottom>div:nth-child(2){background:transparent;border:0;box-shadow:none;pointer-events:none}
+#game .bottom>div:nth-child(2)>h2{display:none}
+#game #hand{width:max-content;max-width:100%;margin:auto;overflow-x:auto;overflow-y:hidden;padding:5px 4px 8px;gap:0;pointer-events:auto}
+#game #hand .hand-card{margin-right:-30px;transition:transform .15s,margin .15s}
+#game #hand .hand-card:last-child{margin-right:0}
+#game #hand .hand-card:hover,#game #hand .hand-card:focus-visible{z-index:2;transform:none;margin-right:0}
+/* 稀有度颜色只作为视觉区分，不改变规则。 */
+#hand .hand-card{flex-basis:170px;min-height:230px;gap:10px}
+#hand .rarity-low{background:#f7f9f6;border:2px solid #9eafa0}
+#hand .rarity-mid{background:#f1f7fd;border:2px solid #759bc1}
+#hand .rarity-high{background:#fbf4e6;border:2px solid #c49a4c}
+#hand .rarity-unset{background:#f5f5f3;border:2px solid #b3b6b2}
+#hand .hand-card-name{font-size:17px}
+#hand .hand-card-body{-webkit-line-clamp:6}
+#hand .hand-card-cost{order:0;font-weight:700}
+#hand .hand-card-category{order:1}
+.hand-card-general{background:#f8fbf7;border-color:#b6d0c0}
+.hand-card-top{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12px;color:#68818b}
+.hand-card-cost{color:#87682a;white-space:nowrap}
+.hand-card-name{font-size:16px;line-height:1.3;color:#2f4751}
+.hand-card-body{flex:1;white-space:pre-line;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;font-size:13px;line-height:1.45;color:#647b84}
+.hand-card-foot{padding-top:8px;border-top:1px solid #e7eff1;font-size:12px;color:#82969e}
+@media(max-width:600px){.bottom{grid-template-columns:1fr}.hand-card{flex-basis:140px;min-height:190px}}

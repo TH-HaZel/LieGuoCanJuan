@@ -1,26 +1,169 @@
 'use strict';
-const $ = id => document.getElementById(id); let source, currentSession;
+const $ = id => document.getElementById(id); let source, currentSession, localGame=null, switching=false, connectionVersion=0;
 async function enter(endpoint, data){
   $('error').textContent='';
   try {const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error);sessionStorage.setItem('lieguo-session',JSON.stringify(result));connect(result);}
   catch(error){$('error').textContent=error.message;}
 }
-$('create').onclick=()=>enter('/api/create',{name:$('name').value});
-$('join').onclick=()=>enter('/api/join',{name:$('name').value,code:$('roomInput').value});
+const generalNames=['秦琼','薛仁贵','尉迟敬德','李勣','裴行俭','郭子仪','李嗣业','刘仁轨'];
+for(const [index,id] of ['initial','general1','general2'].entries()){generalNames.forEach((name,i)=>{const option=document.createElement('option');option.value=`G${String(i+1).padStart(2,'0')}`;option.textContent=name;$(id).append(option)});$(id).selectedIndex=index;}
+const selection=()=>({initial:$('initial').value,deckGenerals:[$('general1').value,$('general2').value]});
+$('create').onclick=()=>enter('/api/create',{name:$('name').value,selection:selection()});
+$('join').onclick=()=>enter('/api/join',{name:$('name').value,code:$('roomInput').value,selection:selection()});
 function connect(session){
-  currentSession=session; if(source)source.close();$('lobby').hidden=true;$('game').hidden=false;$('roomCode').textContent=session.code;
+  currentSession=session; if(source)source.close();const version=++connectionVersion;$('lobby').hidden=true;$('handoff').hidden=true;$('game').hidden=false;$('roomCode').textContent=session.code;
   source=new EventSource(`/events?room=${encodeURIComponent(session.code)}&token=${encodeURIComponent(session.token)}`);
   source.onopen=()=>{$('connection').textContent='🟢 已连接';};
   source.onerror=()=>{$('connection').textContent='连接中断，正在重试';};
-  source.onmessage=event=>render(JSON.parse(event.data));
+  source.onmessage=event=>{if(version===connectionVersion)render(JSON.parse(event.data))};
 }
-async function action(type) {
-  try {const response=await fetch('/api/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentSession)});const result=await response.json();if(!response.ok)throw new Error(result.error);render(result);}catch(error){$('message').textContent=error.message;}
+async function action(type,extra={}) {
+  if(localGame&&type==='end-turn'){await localEndTurn();return;}
+  try {const response=await fetch('/api/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...currentSession,...extra})});const result=await response.json();if(!response.ok)throw new Error(result.error);render(result);}catch(error){$('message').textContent=error.message;}
 }
 $('start').onclick=()=>action('start'); $('endTurn').onclick=()=>action('end-turn');
-function render(state){
-  const me=state.self; $('message').textContent=state.event; $('start').hidden=state.phase!=='waiting'||state.hostId!==me.id; $('endTurn').hidden=state.phase!=='playing'||state.currentPlayerId!==me.id; const current=state.players.find(p=>p.id===state.currentPlayerId); $('turn').textContent=current?`第 ${state.round} 轮 · ${current.name}的回合`:'等待开始'; $('self').textContent=`${me.name}（我） · ${me.country}　❤️ ${me.health}/${me.maxHealth}　🪙 ${me.gold}　增益：${me.buffs.length ? me.buffs.join('、') : '无'}`;
-  $('generals').textContent=me.generals.length ? me.generals.map(x=>x.name).join('、'):'暂无将领'; $('hand').textContent=me.hand.length ? me.hand.map(x=>x.name).join('、'):'暂无手牌';
-  $('opponents').replaceChildren(...state.players.filter(p=>p.id!==me.id).map(player=>{const el=document.createElement('div');el.className='player';el.textContent=`${player.name} · ${player.country}　❤️ ${player.health}/${player.maxHealth}　🪙 ${player.gold}　将领 ${player.generals.length}　手牌 ${player.handCount}　增益 ${player.buffs.length}`;return el;}));
+function showCardDetails(card){
+  const overlay=document.createElement('div');overlay.className='card-detail-overlay';
+  const panel=document.createElement('section');panel.className='card-detail';
+  panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label',card.name);
+  const title=document.createElement('h2');title.textContent=card.name;
+  const description=document.createElement('p');description.textContent=card.description||'暂无介绍';
+  const note=document.createElement('small');note.textContent='此牌效果尚未实现';
+  const close=document.createElement('button');close.textContent='关闭';
+  const dismiss=()=>{overlay.remove();document.removeEventListener('keydown',onKey);};
+  const onKey=e=>{if(e.key==='Escape')dismiss();};
+  close.onclick=dismiss;overlay.onclick=e=>{if(e.target===overlay)dismiss();};
+  document.addEventListener('keydown',onKey);panel.append(title,description,note,close);overlay.append(panel);document.body.append(overlay);close.focus();
 }
-try{const session=JSON.parse(sessionStorage.getItem('lieguo-session'));if(session?.code && session?.token)connect(session);}catch{}
+function renderHand(cards){
+  const hand=$('hand');hand.replaceChildren();
+  if(!cards.length){const empty=document.createElement('span');empty.className='hand-empty';empty.textContent='暂无手牌';hand.append(empty);return;}
+  cards.forEach((card,index)=>{
+    const isGeneral=card.kind==='general',button=document.createElement('button');
+    const rarityClass=({'低级':'rarity-low','中级':'rarity-mid','高级':'rarity-high'})[card.rarity]||'rarity-unset';
+    button.className='hand-card '+rarityClass+(isGeneral?' hand-card-general':'');
+    button.type='button';
+    const top=document.createElement('span');top.className='hand-card-top';
+    const category=document.createElement('span');category.className='hand-card-category';category.textContent=isGeneral?'武将':(card.category||'技能牌');
+    const cost=document.createElement('span');cost.className='hand-card-cost';cost.textContent='💰 '+(isGeneral?card.deployCost:card.cost);
+    top.append(cost,category);
+    const name=document.createElement('strong');name.className='hand-card-name';name.textContent=card.name;
+    const body=document.createElement('span');body.className='hand-card-body';
+    if(isGeneral)body.textContent=`攻击 ${card.attack}  ·  防御 ${card.defense}\n生命 ${card.health}/${card.maxHealth}  ·  冷却 ${card.cooldown}`;
+    else {const description=card.description||'';const effect=description.match(/(?:效果[：:]|本次|选择|获得|所有|使|若)/);body.textContent=(effect?description.slice(effect.index):description).replace(/^效果[：:]\s*/,'').trim();}
+    const foot=document.createElement('span');foot.className='hand-card-foot';foot.textContent=isGeneral?'点击部署':`${card.rarity||'技能牌'} · 点击查看`;
+    button.append(top,name,body,foot);button.title=isGeneral?'点击支付部署费用':card.description||card.name;
+    button.onclick=()=>{if(isGeneral)action('deploy',{index});else showCardDetails(card);};
+    hand.append(button);
+  });
+}
+function heartFillPercent(fraction){
+  const points=[[50,95],[5,48],[3,28],[10,12],[25,5],[39,9],[50,21],[61,9],[75,5],[90,12],[97,28],[95,48]];
+  function areaAt(y){
+    const clipped=[];
+    for(let i=0;i<points.length;i++){
+      const a=points[i],b=points[(i+1)%points.length],inside=a[1]>=y,next=b[1]>=y;
+      if(inside)clipped.push(a);
+      if(inside!==next){const t=(y-a[1])/(b[1]-a[1]);clipped.push([a[0]+t*(b[0]-a[0]),y]);}
+    }
+    return Math.abs(clipped.reduce((sum,a,i)=>{const b=clipped[(i+1)%clipped.length];return sum+a[0]*b[1]-b[0]*a[1];},0))/2;
+  }
+  const total=areaAt(0),target=Math.max(0,Math.min(1,fraction))*total;let low=0,high=100;
+  for(let i=0;i<24;i++){const mid=(low+high)/2;if(areaAt(mid)>target)low=mid;else high=mid;}
+  return 100-(low+high)/2;
+}
+function render(state){
+  const me=state.self; $('message').textContent=state.event; $('start').hidden=state.phase!=='waiting'||state.hostId!==me.id; $('endTurn').hidden=state.phase!=='playing'||state.currentPlayerId!==me.id; const current=state.players.find(p=>p.id===state.currentPlayerId); $('turn').textContent=current?`第 ${state.round} 轮 · ${current.name}的回合`:'等待开始'; const self=$('self');self.replaceChildren();
+  const avatar=document.createElement('span');avatar.className='player-avatar';avatar.textContent='😎';
+  const info=document.createElement('span');info.className='player-info';
+  const label=document.createElement('strong');label.className='player-name';label.textContent=me.name+' · '+me.country;
+  const statuses=document.createElement('span');statuses.className='player-statuses';
+  const heart=document.createElement('span');heart.className='health-heart';
+  const percentage=me.maxHealth>0?heartFillPercent(me.health/me.maxHealth):0;
+  heart.style.setProperty('--health',percentage+'%');heart.title=`生命 ${me.health}/${me.maxHealth}`;
+  const hp=document.createElement('span');hp.className='health-value';hp.textContent=me.health;heart.append(hp);
+  const gold=document.createElement('span');gold.className='player-gold';gold.textContent='💰 '+me.gold;gold.title='黄金';
+  const buffs=document.createElement('span');buffs.className='player-buffs';buffs.textContent='增益：'+(me.buffs.length?me.buffs.join('、'):'无');
+  statuses.append(heart,gold);info.append(label,statuses,buffs);self.append(avatar,info);
+  const generals=$('generals');generals.replaceChildren();
+  if(!me.generals.length)generals.textContent='暂无将领';
+  me.generals.forEach(g=>{
+    const item=document.createElement('div');item.className='general-mini';
+    const name=document.createElement('strong');name.textContent=g.name;
+    const stats=document.createElement('span');stats.textContent=`攻 ${g.attack} · 防 ${g.defense}`;
+    const health=document.createElement('span');health.textContent=`生命 ${g.health}/${g.maxHealth}`;
+    const cooldown=document.createElement('span');cooldown.textContent=`冷却 ${g.remaining||0}`;
+    item.append(name,stats,health,cooldown);generals.append(item);
+  });
+  renderHand(me.hand);
+  $('opponents').replaceChildren(...state.players.filter(p=>p.id!==me.id).map(player=>{
+    const el=document.createElement('div');el.className='player opponent';
+    const header=document.createElement('div');header.className='opponent-header';
+    const avatar=document.createElement('span');avatar.className='player-avatar';avatar.textContent='😎';
+    const info=document.createElement('div');info.className='player-info';
+    const name=document.createElement('strong');name.className='player-name';name.textContent=player.name+' · '+player.country;
+    const statuses=document.createElement('div');statuses.className='player-statuses';
+    const heart=document.createElement('span');heart.className='health-heart';heart.style.setProperty('--health',(player.maxHealth>0?heartFillPercent(player.health/player.maxHealth):0)+'%');heart.title=`生命 ${player.health}/${player.maxHealth}`;
+    const hp=document.createElement('span');hp.className='health-value';hp.textContent=player.health;heart.append(hp);
+    const gold=document.createElement('span');gold.className='player-gold';gold.textContent='💰 '+player.gold;
+    const count=document.createElement('span');count.className='opponent-hand';count.textContent=`手牌 ${player.handCount}`;
+    const buffs=document.createElement('span');buffs.className='player-buffs';buffs.textContent='增益：'+(player.buffs.length?player.buffs.join('、'):'无');
+    statuses.append(heart,gold,count);info.append(name,statuses,buffs);header.append(avatar,info);el.append(header);
+    const generals=document.createElement('div');generals.className='opponent-generals';
+    player.generals.forEach(g=>{const card=document.createElement('div');card.className='general-mini';const title=document.createElement('strong');title.textContent=g.name;const stats=document.createElement('span');stats.textContent=`攻 ${g.attack} · 防 ${g.defense}`;const hp=document.createElement('span');hp.textContent=`生命 ${g.health}/${g.maxHealth}`;const cooldown=document.createElement('span');cooldown.textContent=`冷却 ${g.remaining||0}`;card.append(title,stats,hp,cooldown);generals.append(card);});
+    el.append(generals);return el;
+  }));
+}
+
+const localKey='lieguo-hotseat-v1';
+function saveLocal(){sessionStorage.setItem(localKey,JSON.stringify(localGame));}
+function generalOptions(selected){return generalNames.map((name,i)=>`<option value="G${String(i+1).padStart(2,'0')}" ${i===selected?'selected':''}>${name}</option>`).join('');}
+function localFields(){const count=Number($('localCount').value);$('localPlayers').innerHTML=Array.from({length:count},(_,i)=>`<details class="local-player"><summary>玩家 ${i+1}</summary><div class="row"><label>昵称<input id="localName${i}" maxlength="20" value="玩家 ${i+1}"></label><label>初始武将<select id="localInitial${i}">${generalOptions(0)}</select></label><label>主牌组武将 1<select id="localGeneralA${i}">${generalOptions(1)}</select></label><label>主牌组武将 2<select id="localGeneralB${i}">${generalOptions(2)}</select></label></div></details>`).join('');}
+$('localCount').onchange=localFields;localFields();
+async function post(endpoint,data){const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error||'操作失败');return result;}
+function showHandoff(){++connectionVersion;if(source){source.close();source=null;}$('game').hidden=true;$('lobby').hidden=true;$('handoff').hidden=false;$('hand').replaceChildren();$('self').textContent='';$('generals').textContent='';$('handoffName').textContent=localGame.players[localGame.index].name;}
+$('localStart').onclick=async()=>{
+ if(switching)return;const count=Number($('localCount').value),configs=[];
+ for(let i=0;i<count;i++){const name=$('localName'+i).value.trim(),initial=$('localInitial'+i).value,deckGenerals=[$('localGeneralA'+i).value,$('localGeneralB'+i).value];if(!name||deckGenerals[0]===deckGenerals[1]||deckGenerals.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的昵称，三名武将须互不相同。`;return;}configs.push({name,selection:{initial,deckGenerals}});}
+ switching=true;$('localStart').disabled=true;$('error').textContent='';
+ try{const host=await post('/api/create',configs[0]);const players=[{...host,name:configs[0].name}];for(let i=1;i<count;i++){const joined=await post('/api/join',{...configs[i],code:host.code});players.push({...joined,name:configs[i].name});}await post('/api/start',host);localGame={players,index:0};saveLocal();sessionStorage.removeItem('lieguo-session');showHandoff();}catch(e){$('error').textContent=e.message;}finally{switching=false;$('localStart').disabled=false;}
+};
+async function localEndTurn(){if(switching)return;switching=true;$('endTurn').disabled=true;const previous=localGame.index;showHandoff();$('handoffReveal').disabled=true;$('handoffName').textContent='下一位玩家（正在切换）';
+ try{await post('/api/end-turn',localGame.players[previous]);localGame.index=(previous+1)%localGame.players.length;saveLocal();showHandoff();}catch(e){localGame.index=previous;saveLocal();showHandoff();$('handoffName').textContent=localGame.players[previous].name+'（切换失败：'+e.message+'）';}finally{switching=false;$('endTurn').disabled=false;$('handoffReveal').disabled=false;}}
+$('handoffReveal').onclick=()=>{if(!switching&&localGame)connect(localGame.players[localGame.index]);};
+function compactLobby(){
+  const lobby=$('lobby'),heading=lobby.querySelector('h1');
+  const labels=lobby.querySelectorAll(':scope > label');
+  const notes=lobby.querySelectorAll(':scope > p');
+  const rows=lobby.querySelectorAll(':scope > .row');
+  const divider=lobby.querySelector(':scope > hr'),localHeading=lobby.querySelector(':scope > h2');
+  const home=document.createElement('div');home.className='lobby-options';
+  const config=document.createElement('section');config.className='lobby-config';config.hidden=true;
+  const configTitle=document.createElement('h2');
+  const content=document.createElement('div');content.className='lobby-config-content';
+  const back=document.createElement('button');back.type='button';back.textContent='← 返回主页';
+  const roomNodes=[labels[0],notes[0],rows[0],rows[1]];
+  const localNodes=[notes[1],labels[1],$('localStart'),$('localPlayers')];
+  function openConfig(title,nodes){
+    $('error').textContent='';configTitle.textContent=title;
+    if(nodes===localNodes){
+      const left=document.createElement('div');left.className='local-config-main';left.append(nodes[0],nodes[1],nodes[2]);
+      const right=document.createElement('div');right.className='local-config-players';right.append(nodes[3]);
+      content.classList.add('local-config-columns');content.replaceChildren(left,right);
+    }else{content.classList.remove('local-config-columns');content.replaceChildren(...nodes);}
+    home.hidden=true;config.hidden=false;
+  }
+  function entry(title,nodes){
+    const button=document.createElement('button');button.type='button';button.className='lobby-entry';button.textContent=title;
+    button.onclick=()=>openConfig(title,nodes);return button;
+  }
+  back.onclick=()=>{$('error').textContent='';config.hidden=true;home.hidden=false;};
+  for(const node of [...roomNodes,...localNodes])node.remove();
+  heading.textContent='🎴 列国残卷';
+  home.append(entry('创建或加入房间',roomNodes),entry('单机轮流测试',localNodes));
+  config.append(back,configTitle,content);
+  if(divider)divider.remove();if(localHeading)localHeading.remove();
+  lobby.insertBefore(home,$('error'));lobby.insertBefore(config,$('error'));
+}
+compactLobby();
+try{localGame=JSON.parse(sessionStorage.getItem(localKey));if(localGame?.players?.length&&Number.isInteger(localGame.index)&&localGame.players[localGame.index])showHandoff();else{localGame=null;const session=JSON.parse(sessionStorage.getItem('lieguo-session'));if(session?.code&&session?.token)connect(session);}}catch{localGame=null;}

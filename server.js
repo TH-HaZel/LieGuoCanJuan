@@ -17,13 +17,13 @@ const server = http.createServer(async (req,res) => {
       const {room,player}=rooms.authenticate(url.searchParams.get('room')||'',url.searchParams.get('token')||'');
       res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache','Connection':'keep-alive'}); rooms.subscribe(room,player,res); return;
     }
-    if (req.method==='POST' && ['/api/create','/api/join','/api/start','/api/end-turn'].includes(url.pathname)) {
+    if (req.method==='POST' && ['/api/create','/api/join','/api/start','/api/end-turn','/api/deploy'].includes(url.pathname)) {
       let data=''; for await(const part of req){data+=part;if(data.length>4096) throw new Error('请求过大');}
       const body=JSON.parse(data || '{}');
-      if (url.pathname === '/api/start' || url.pathname === '/api/end-turn') {json(res,200,rooms.action(body.code || '',body.token || '',url.pathname.slice(5)));return;}
+      if (url.pathname === '/api/start' || url.pathname === '/api/end-turn' || url.pathname === '/api/deploy') {json(res,200,rooms.action(body.code || '',body.token || '',url.pathname.slice(5),body));return;}
       const name=nameOf(body.name);
-      if(url.pathname==='/api/create'){const {room,player}=rooms.createRoom(name);json(res,200,{code:room.code,token:player.token});}
-      else {const code=String(body.code||'').trim().toUpperCase();const player=rooms.joinRoom(code,name);json(res,200,{code,token:player.token});}return;
+      if(url.pathname==='/api/create'){const {room,player}=rooms.createRoom(name,body.selection);json(res,200,{code:room.code,token:player.token});}
+      else {const code=String(body.code||'').trim().toUpperCase();const player=rooms.joinRoom(code,name,body.selection);json(res,200,{code,token:player.token});}return;
     }
     json(res,404,{error:'未找到'});
   } catch(e) {if(!res.headersSent) json(res,400,{error:e.message || '请求失败'}); else res.end();}
