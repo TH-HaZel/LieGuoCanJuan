@@ -313,3 +313,16 @@ body #game{padding-bottom:175px}
 }
 #game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3)))>.opponent:nth-child(1){grid-column:1;grid-row:1}
 #game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3)))>.opponent:nth-child(2){grid-column:2;grid-row:1}
+
+/* Selected hand card and its confirmation controls. */
+#game #hand{padding-top:28px;overflow-y:hidden}
+#game #hand .hand-card-selected,#game #hand .hand-card-selected:hover,#game #hand .hand-card-selected:focus-visible{transform:translateY(-20px);z-index:3}
+#game>.card-actions{position:fixed;right:345px;bottom:245px;z-index:6;display:flex;align-items:center;gap:6px;pointer-events:auto;font-size:12px}
+#game>.card-actions:empty{display:none}
+#game>.card-actions button{padding:5px 9px}
+@media(max-width:700px){#game>.card-actions{right:280px;bottom:220px}}
+
+/* Compact war control and prominent card confirmation. */
+#game>.war-toggle{position:fixed;right:130px;bottom:215px;z-index:6;padding:6px 10px;font-size:13px;background:#f5f9f4;border-color:#b7ccba}
+#game>.card-actions .card-confirm{padding:10px 18px;font-size:15px;font-weight:600;background:#d8edf3;border-color:#a7ccd8}
+@media(max-width:700px){#game>.war-toggle{right:105px;bottom:200px}}

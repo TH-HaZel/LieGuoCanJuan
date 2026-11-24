@@ -1,10 +1,11 @@
 'use strict';
 const {drawCard,general,shuffle}=require('./deck');
 const crypto=require('node:crypto');
+const cardEffects=require('./cardEffects');
 function refreshMarkets(room){for(const p of room.players)p.market=shuffle(p.marketPool.map(g=>g.id)).slice(0,2);}
 function requireTurn(room,player){if(room.war)throw Error('战争尚未结束');if(room.phase!=='playing'||room.players[room.turnIndex].id!==player.id)throw new Error('只能在自己的回合操作');}
 function receiveGeneral(player,g){if(player.hand.length<10){player.hand.push(g);return false;}const reset=general(g.id);reset.instanceId=g.instanceId;reset.deployAfterTurn=g.deployAfterTurn;player.discard.push(reset);return true;}
-function beginTurn(room,player){player.turnsStarted++;player.purchased=false;player.gold+=Math.min(room.round,7)+1;return drawCard(player);}
+function beginTurn(room,player){player.turnsStarted++;player.gold+=player.pendingPolicy||0;player.pendingPolicy=0;player.purchased=false;player.gold+=Math.min(room.round,7)+1;return drawCard(player);}
 function startGame(room, player) {
   if(room.phase!=='waiting')throw new Error('游戏已经开始');
   if(room.players[0].id!==player.id)throw new Error('只有房主可以开始游戏');
@@ -49,4 +50,16 @@ function withdraw(room,player,index){
   room.event=`${player.name}撤回了${g.name}。`;
   return overflow?'手牌已满，武将重置后进入弃牌堆':'撤回成功，再次部署需要支付费用';
 }
-module.exports={startGame,endTurn,deploy,buy,withdraw};
+function playCard(room,player,body){
+  requireTurn(room,player);
+  const index=player.hand.findIndex(c=>c.instanceId===body.instanceId);
+  if(index<0||typeof body.instanceId!=='string')throw Error('手牌不存在');
+  const card=player.hand[index],effect=cardEffects[card.id];
+  if(!effect||card.kind==='general')throw Error('该牌效果尚未实现');
+  if(player.gold<card.cost)throw Error('黄金不足');
+  const context={room,player,targetIndex:body.targetIndex};
+  if(effect.validate)effect.validate(context);
+  player.gold-=card.cost;player.hand.splice(index,1);player.discard.push(card);
+  effect.use(context);room.event=`${player.name}使用了${card.name}。`;
+}
+module.exports={startGame,endTurn,deploy,buy,withdraw,playCard};

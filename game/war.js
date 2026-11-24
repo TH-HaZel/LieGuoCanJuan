@@ -38,7 +38,7 @@ function respondWar(room,player,body){
     const id=body.instanceId;
     if(id!==null&&typeof id!=='string')throw Error('无效的卡牌');
     const card=id===null?null:player.hand.find(c=>c.instanceId===id);
-    const allowed=player.id===a.id?['T05','T08','N02','N30']:['N08','N10','N11','N12','N29','N30'];
+    const allowed=player.id===a.id?['T05','T08','N02','N30']:['N08','N10','N11','N12','N30'];
     if(id!==null&&(!card||!allowed.includes(card.id)||player.gold<card.cost))throw Error('卡牌不可使用或黄金不足');
     w.selections[player.id]=id;
     if(player.id===a.id){w.waitingId=d.id;room.event='进攻方已确认暗盖，等待防守方。';return;}
@@ -54,7 +54,7 @@ function respondWar(room,player,body){
     }
     const distance=seatDistance(room.players.filter(p=>p.health>0).map(p=>p.id),a.id,d.id);
     const penalty=Math.max(0,(ac?.id==='T05'?0:distance-1)-(ac?.id==='N02'?1:0))+(dc?.id==='N11'?2:0);
-    const attack=teamPower(attackGenerals,'attack')+(ac?.id==='T08'?3:ac?.id==='N02'?2:0)-(dc?.id==='N12'?2:0);
+    const attack=teamPower(attackGenerals,'attack')+(ac?.id==='T08'?1:ac?.id==='N02'?1:0)-(dc?.id==='N12'?2:0);
     const defense=(w.hardDefense?d.defense:teamPower(defenseGenerals,'defense'))+(dc?.id==='N08'?3:dc?.id==='N10'?5:0);
     const result=calculateBattle({attack,defense,distance:penalty+1,hardDefense:w.hardDefense});
     w.result=result;
