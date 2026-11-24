@@ -7,7 +7,10 @@ async function enter(endpoint, data){
 }
 const generalNames=['秦琼','薛仁贵','尉迟敬德','李勣','裴行俭','郭子仪','李嗣业','刘仁轨'];
 for(const [index,id] of ['initial','general1','general2'].entries()){generalNames.forEach((name,i)=>{const option=document.createElement('option');option.value=`G${String(i+1).padStart(2,'0')}`;option.textContent=name;$(id).append(option)});$(id).selectedIndex=index;}
-const selection=()=>({initial:$('initial').value,deckGenerals:[$('general1').value,$('general2').value]});
+function marketOptions(prefix){return generalNames.map((name,i)=>`<label class="market-choice"><input type="checkbox" name="${prefix}-market" value="G${String(i+1).padStart(2,'0')}" ${i>=3?'checked':''}>${name}</label>`).join('');}
+function marketSelection(prefix){return Array.from(document.querySelectorAll(`input[name="${prefix}-market"]:checked`),input=>input.value);}
+const poolSettings=document.createElement('fieldset');poolSettings.className='market-settings';poolSettings.innerHTML='<legend>额外武将池（最多 5 名）</legend>'+marketOptions('room');$('initial').closest('.row').append(poolSettings);
+const selection=()=>({initial:$('initial').value,deckGenerals:[$('general1').value,$('general2').value],marketIds:marketSelection('room')});
 $('create').onclick=()=>enter('/api/create',{name:$('name').value,selection:selection()});
 $('join').onclick=()=>enter('/api/join',{name:$('name').value,code:$('roomInput').value,selection:selection()});
 function connect(session){
@@ -19,9 +22,24 @@ function connect(session){
 }
 async function action(type,extra={}) {
   if(localGame&&type==='end-turn'){await localEndTurn();return;}
-  try {const response=await fetch('/api/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...currentSession,...extra})});const result=await response.json();if(!response.ok)throw new Error(result.error);render(result);}catch(error){$('message').textContent=error.message;}
+  try {const response=await fetch('/api/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...currentSession,...extra})});const result=await response.json();if(!response.ok)throw new Error(result.error);render(result);if(result.notice)$('message').textContent=result.notice;}catch(error){$('message').textContent=error.message;}
 }
 $('start').onclick=()=>action('start'); $('endTurn').onclick=()=>action('end-turn');
+const marketPanel=document.createElement('section');marketPanel.className='market-panel';marketPanel.hidden=true;$('message').parentElement.append(marketPanel);
+function renderMarket(me,isTurn,phase){
+  marketPanel.hidden=phase!=='playing';marketPanel.replaceChildren();if(marketPanel.hidden)return;
+  const title=document.createElement('h2');title.textContent='武将商店';marketPanel.append(title);
+  const note=document.createElement('p');note.className='market-note';
+  note.textContent=me.purchased?'本回合已购买':isTurn?'本轮候选 · 下回合可部署':'本轮候选 · 请等待你的回合';marketPanel.append(note);
+  if(!me.market.length){const empty=document.createElement('p');empty.textContent='本轮没有候选武将';marketPanel.append(empty);}
+  me.market.forEach(g=>{
+    const button=document.createElement('button');button.className='market-option';button.type='button';
+    const name=document.createElement('strong');name.textContent=`${g.name} · 💰 ${g.cost}`;
+    const stats=document.createElement('span');stats.textContent=`攻 ${g.attack} · 防 ${g.defense} · 生命 ${g.health} · 冷却 ${g.cooldown}`;
+    const description=document.createElement('span');description.className='market-description';description.textContent=g.description||'暂无技能介绍。';
+    button.append(name,stats,description);button.disabled=!isTurn||me.purchased;button.onclick=()=>action('buy',{id:g.id});marketPanel.append(button);
+  });
+}
 function showCardDetails(card){
   const overlay=document.createElement('div');overlay.className='card-detail-overlay';
   const panel=document.createElement('section');panel.className='card-detail';
@@ -35,7 +53,7 @@ function showCardDetails(card){
   close.onclick=dismiss;overlay.onclick=e=>{if(e.target===overlay)dismiss();};
   document.addEventListener('keydown',onKey);panel.append(title,description,note,close);overlay.append(panel);document.body.append(overlay);close.focus();
 }
-function renderHand(cards){
+function renderHand(cards,turnsStarted){
   const hand=$('hand');hand.replaceChildren();
   if(!cards.length){const empty=document.createElement('span');empty.className='hand-empty';empty.textContent='暂无手牌';hand.append(empty);return;}
   cards.forEach((card,index)=>{
@@ -51,7 +69,7 @@ function renderHand(cards){
     const body=document.createElement('span');body.className='hand-card-body';
     if(isGeneral)body.textContent=`攻击 ${card.attack}  ·  防御 ${card.defense}\n生命 ${card.health}/${card.maxHealth}  ·  冷却 ${card.cooldown}`;
     else {const description=card.description||'';const effect=description.match(/(?:效果[：:]|本次|选择|获得|所有|使|若)/);body.textContent=(effect?description.slice(effect.index):description).replace(/^效果[：:]\s*/,'').trim();}
-    const foot=document.createElement('span');foot.className='hand-card-foot';foot.textContent=isGeneral?'点击部署':`${card.rarity||'技能牌'} · 点击查看`;
+    const foot=document.createElement('span');foot.className='hand-card-foot';foot.textContent=isGeneral?(card.deployAfterTurn>turnsStarted?'下回合可部署':'点击部署'):`${card.rarity||'技能牌'} · 点击查看`;
     button.append(top,name,body,foot);button.title=isGeneral?'点击支付部署费用':card.description||card.name;
     button.onclick=()=>{if(isGeneral)action('deploy',{index});else showCardDetails(card);};
     hand.append(button);
@@ -87,15 +105,16 @@ function render(state){
   statuses.append(heart,gold);info.append(label,statuses,buffs);self.append(avatar,info);
   const generals=$('generals');generals.replaceChildren();
   if(!me.generals.length)generals.textContent='暂无将领';
-  me.generals.forEach(g=>{
+  me.generals.forEach((g,index)=>{
     const item=document.createElement('div');item.className='general-mini';
     const name=document.createElement('strong');name.textContent=g.name;
     const stats=document.createElement('span');stats.textContent=`攻 ${g.attack} · 防 ${g.defense}`;
     const health=document.createElement('span');health.textContent=`生命 ${g.health}/${g.maxHealth}`;
     const cooldown=document.createElement('span');cooldown.textContent=`冷却 ${g.remaining||0}`;
-    item.append(name,stats,health,cooldown);generals.append(item);
+    const withdraw=document.createElement('button');withdraw.type='button';withdraw.className='withdraw-general';withdraw.textContent='撤回';withdraw.disabled=state.phase!=='playing'||state.currentPlayerId!==me.id;withdraw.onclick=()=>action('withdraw',{index});item.append(name,stats,health,cooldown,withdraw);generals.append(item);
   });
-  renderHand(me.hand);
+  renderHand(me.hand,me.turnsStarted);
+  renderMarket(me,state.currentPlayerId===me.id,state.phase);
   $('opponents').replaceChildren(...state.players.filter(p=>p.id!==me.id).map(player=>{
     const el=document.createElement('div');el.className='player opponent';
     const header=document.createElement('div');header.className='opponent-header';
@@ -118,13 +137,13 @@ function render(state){
 const localKey='lieguo-hotseat-v1';
 function saveLocal(){sessionStorage.setItem(localKey,JSON.stringify(localGame));}
 function generalOptions(selected){return generalNames.map((name,i)=>`<option value="G${String(i+1).padStart(2,'0')}" ${i===selected?'selected':''}>${name}</option>`).join('');}
-function localFields(){const count=Number($('localCount').value);$('localPlayers').innerHTML=Array.from({length:count},(_,i)=>`<details class="local-player"><summary>玩家 ${i+1}</summary><div class="row"><label>昵称<input id="localName${i}" maxlength="20" value="玩家 ${i+1}"></label><label>初始武将<select id="localInitial${i}">${generalOptions(0)}</select></label><label>主牌组武将 1<select id="localGeneralA${i}">${generalOptions(1)}</select></label><label>主牌组武将 2<select id="localGeneralB${i}">${generalOptions(2)}</select></label></div></details>`).join('');}
+function localFields(){const count=Number($('localCount').value);$('localPlayers').innerHTML=Array.from({length:count},(_,i)=>`<details class="local-player"><summary>玩家 ${i+1}</summary><div class="row"><label>昵称<input id="localName${i}" maxlength="20" value="玩家 ${i+1}"></label><label>初始武将<select id="localInitial${i}">${generalOptions(0)}</select></label><label>主牌组武将 1<select id="localGeneralA${i}">${generalOptions(1)}</select></label><label>主牌组武将 2<select id="localGeneralB${i}">${generalOptions(2)}</select></label></div><fieldset class="market-settings"><legend>额外武将池（最多 5 名）</legend>${marketOptions('local'+i)}</fieldset></details>`).join('');}
 $('localCount').onchange=localFields;localFields();
 async function post(endpoint,data){const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error||'操作失败');return result;}
-function showHandoff(){++connectionVersion;if(source){source.close();source=null;}$('game').hidden=true;$('lobby').hidden=true;$('handoff').hidden=false;$('hand').replaceChildren();$('self').textContent='';$('generals').textContent='';$('handoffName').textContent=localGame.players[localGame.index].name;}
+function showHandoff(){++connectionVersion;if(source){source.close();source=null;}$('game').hidden=true;$('lobby').hidden=true;$('handoff').hidden=false;$('hand').replaceChildren();marketPanel.hidden=true;marketPanel.replaceChildren();$('self').textContent='';$('generals').textContent='';$('handoffName').textContent=localGame.players[localGame.index].name;}
 $('localStart').onclick=async()=>{
  if(switching)return;const count=Number($('localCount').value),configs=[];
- for(let i=0;i<count;i++){const name=$('localName'+i).value.trim(),initial=$('localInitial'+i).value,deckGenerals=[$('localGeneralA'+i).value,$('localGeneralB'+i).value];if(!name||deckGenerals[0]===deckGenerals[1]||deckGenerals.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的昵称，三名武将须互不相同。`;return;}configs.push({name,selection:{initial,deckGenerals}});}
+ for(let i=0;i<count;i++){const name=$('localName'+i).value.trim(),initial=$('localInitial'+i).value,deckGenerals=[$('localGeneralA'+i).value,$('localGeneralB'+i).value],marketIds=marketSelection('local'+i);if(marketIds.length>5||marketIds.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的额外武将池（最多五名，不能包含初始武将）。`;return;}if(!name||deckGenerals[0]===deckGenerals[1]||deckGenerals.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的昵称，三名武将须互不相同。`;return;}configs.push({name,selection:{initial,deckGenerals,marketIds}});}
  switching=true;$('localStart').disabled=true;$('error').textContent='';
  try{const host=await post('/api/create',configs[0]);const players=[{...host,name:configs[0].name}];for(let i=1;i<count;i++){const joined=await post('/api/join',{...configs[i],code:host.code});players.push({...joined,name:configs[i].name});}await post('/api/start',host);localGame={players,index:0};saveLocal();sessionStorage.removeItem('lieguo-session');showHandoff();}catch(e){$('error').textContent=e.message;}finally{switching=false;$('localStart').disabled=false;}
 };

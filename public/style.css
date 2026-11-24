@@ -156,3 +156,17 @@ body #game{padding-bottom:175px}
 .hand-card-body{flex:1;white-space:pre-line;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;font-size:13px;line-height:1.45;color:#647b84}
 .hand-card-foot{padding-top:8px;border-top:1px solid #e7eff1;font-size:12px;color:#82969e}
 @media(max-width:600px){.bottom{grid-template-columns:1fr}.hand-card{flex-basis:140px;min-height:190px}}
+
+/* 额外武将池和购买交互 */
+.market-settings{display:flex;flex-wrap:wrap;gap:6px 10px;border:1px solid #d3e1d6;border-radius:6px;margin:10px 0;padding:8px}
+.market-settings legend{font-size:12px;color:#607466}.market-choice{display:inline-flex;align-items:center;gap:3px;font-size:12px}.market-choice input{margin:0}
+.market-option{display:block;width:100%;text-align:left;margin:6px 0}.withdraw-general{font-size:10px;padding:2px 4px;margin-top:3px}
+
+/* 武将商店放在事件下方，仅显示当前玩家的候选。 */
+#game>.lower>div:nth-child(2){max-height:min(45vh,360px)}
+.market-panel{margin-top:10px;padding-top:8px;border-top:1px solid #d4e0d7}
+.market-panel h2{margin:0 0 4px}.market-panel .market-note{font-size:11px;margin:0 0 5px;color:#718274}
+#game>.lower>div:nth-child(2){width:280px;max-height:min(55vh,460px)}
+.market-panel .market-option{display:flex;flex-direction:column;gap:4px;white-space:normal;font-size:12px;line-height:1.4;padding:8px;margin:6px 0}
+.market-option strong{font-size:14px}.market-description{color:#607466}
+@media(max-width:700px){#game>.lower>div:nth-child(2){width:200px;max-height:40vh}}

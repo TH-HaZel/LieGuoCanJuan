@@ -1,30 +1,11 @@
-diff --git a/README.md b/README.md
-index 9e30278..b54d6db 100644
---- a/README.md
-+++ b/README.md
-@@ -6,3 +6,3 @@
- 
--本版仍是基础交互，不是完整对战版：尚无自定义公共牌组与保存、额外武将购买、撤回、卡牌效果、战争、外交、冷却递减、中立资源争夺和胜负判定。部署费用暂为 1 金；大轮开始统一发放收入为测试方案。所有对局状态保存在服务器内存中，重启后清空。
-+本版仍是基础交互，不是完整对战版：尚无自定义公共牌组与保存、额外武将购买、撤回、卡牌效果、战争、外交、冷却递减、中立资源争夺和胜负判定。部署费用暂为 1 金；黄金在各玩家自己的回合开始时发放。所有对局状态保存在服务器内存中，重启后清空。
- 
-diff --git a/game/game.js b/game/game.js
-index 7f2a4f2..a7c0089 100644
---- a/game/game.js
-+++ b/game/game.js
-@@ -2,3 +2,3 @@
- const {drawCard}=require('./deck');
--function beginRound(room){for(const p of room.players)p.gold+=Math.min(room.round,7)+1;}
-+function beginTurn(room,player){player.gold+=Math.min(room.round,7)+1;return drawCard(player);}
- function startGame(room, player) {
-@@ -9,3 +9,3 @@ function startGame(room, player) {
-   for(const p of room.players)for(let i=0;i<5;i++)drawCard(p);
--  beginRound(room);const result=drawCard(room.players[0]);
-+  const result=beginTurn(room,room.players[0]);
-   room.event=`游戏开始，${room.players[0].name}的回合：${result}。`;
-@@ -15,4 +15,4 @@ function endTurn(room, player) {
-   if(room.players[room.turnIndex].id!==player.id)throw new Error('还没有轮到你');
--  room.turnIndex++;if(room.turnIndex>=room.players.length){room.turnIndex=0;room.round++;beginRound(room);}
--  const next=room.players[room.turnIndex],result=drawCard(next);room.event=`${player.name}结束回合；${next.name}的回合：${result}。`;
-+  room.turnIndex++;if(room.turnIndex>=room.players.length){room.turnIndex=0;room.round++;}
-+  const next=room.players[room.turnIndex],result=beginTurn(room,next);room.event=`${player.name}结束回合；${next.name}的回合：${result}。`;
- }
+diff --git a/game/deck.js b/game/deck.js
+index 19e43a6..b34e1c4 100644
+--- a/game/deck.js
++++ b/game/deck.js
+@@ -10,4 +10,4 @@ const generalDescriptions={
+   G05:'天意：战争中指定一名敌方参战武将，使其本次战争无法发动自身技能。',
+-  G06:'戍卫：参与进攻或防守战争并战败时，自身额外损失 1 点生命，己方国家受到的本次战争伤害减半，向上取整。',
+-  G07:'破阵：敌方国家受到的本次战争伤害增加 50%，增加部分向上取整。',
++  G06:'戍卫：参与进攻或防守战争并战败时，自身额外损失 1 点生命，己方国家受到的本次战争伤害减半，向下取整。',
++  G07:'破阵：敌方国家受到的本次战争伤害增加 50%，增加部分向下取整。',
+   G08:'无专属技能。'
