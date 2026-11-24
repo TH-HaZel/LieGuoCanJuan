@@ -1,3 +1,67 @@
+/* 缩小标题栏，并固定三人局两位对手的位置。 */
+html body header{height:44px}
+#game#game>.room-info{height:44px}
+@media (min-width:901px){
+  #game#game#game#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3))){
+    position:fixed;top:54px;left:16px;right:305px;margin:0;padding:0;
+  }
+  #game#game#game#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3)))>.opponent{transform:none}
+}
+/* 五、六人局：左上玩家与左下玩家一起下移。 */
+@media (min-width:901px){
+  #game#game#game #opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(1){transform:translateY(100px)}
+}
+
+/* 五、六人局：上排保持原位，左下玩家单独下移。 */
+@media (min-width:901px){
+  #game#game#game #opponents:has(>.opponent:nth-child(4)){top:58px}
+  #game#game#game #opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(4){transform:translateY(100px)}
+}
+
+/* 五、六人局整体下移对手区域。 */
+@media (min-width:901px){
+  #game#game #opponents:has(>.opponent:nth-child(4)){top:178px}
+}
+
+
+/* 上方最右侧的对手向右对齐。 */
+@media (min-width:901px){
+  #game#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3)))>.opponent:nth-child(2){justify-self:end}
+  #game#game #opponents:has(>.opponent:nth-child(3)):not(:has(>.opponent:nth-child(5)))>.opponent:nth-child(3){justify-self:end}
+  #game#game #opponents:has(>.opponent:nth-child(5))>.opponent:nth-child(5){justify-self:end}
+}
+
+/* 四至六人：以屏幕边缘和事件栏为基准摆放对手。 */
+@media (min-width:901px){
+  #game #opponents:has(>.opponent:nth-child(3)){
+    position:fixed;
+    top:58px;
+    left:16px;
+    right:305px;
+    z-index:2;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-rows:170px 170px;
+    gap:12px;
+    margin:0;
+    padding:0;
+    pointer-events:none;
+  }
+  #game #opponents:has(>.opponent:nth-child(3))>.opponent{
+    grid-column:auto;
+    grid-row:auto;
+    justify-self:start;
+    pointer-events:auto;
+  }
+  #game #opponents:has(>.opponent:nth-child(3)):not(:has(>.opponent:nth-child(4)))>.opponent:nth-child(1){grid-column:1;grid-row:2}
+  #game #opponents:has(>.opponent:nth-child(3)):not(:has(>.opponent:nth-child(4)))>.opponent:nth-child(2){grid-column:2;grid-row:1}
+  #game #opponents:has(>.opponent:nth-child(3)):not(:has(>.opponent:nth-child(4)))>.opponent:nth-child(3){grid-column:3;grid-row:1}
+  #game #opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(1){grid-column:1;grid-row:1}
+  #game #opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(2){grid-column:2;grid-row:1}
+  #game #opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(3){grid-column:3;grid-row:1}
+  #game #opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(4){grid-column:1;grid-row:2}
+  #game #opponents:has(>.opponent:nth-child(5))>.opponent:nth-child(5){grid-column:4;grid-row:1;justify-self:end}
+}
 *{box-sizing:border-box}body{margin:0;background:#f1f6f9;color:#293c48;font:16px/1.6 system-ui,'Microsoft YaHei',sans-serif}header{height:64px;padding:0 28px;border-bottom:1px solid #d9e6ec;background:#ffffffb8;display:flex;gap:14px;align-items:center}header b{font-size:20px;letter-spacing:.08em}header span{font-size:14px;color:#718792}main{max-width:1200px;margin:auto;padding:28px 24px}h1{font-size:22px;margin:0 0 24px}h2{font-size:16px;margin:0 0 12px;color:#526b78}button,input{font:inherit;border:1px solid #c7d7df;background:#fff;border-radius:8px;padding:9px 13px;color:inherit}button{cursor:pointer;transition:background .15s,border-color .15s}button:hover{background:#e8f4f8;border-color:#81adbe}button:focus-visible,input:focus-visible{outline:3px solid #8bbdce;outline-offset:2px}#create,#start,#endTurn{background:#d8edf3;border-color:#a7ccd8}input:focus{border-color:#8db7c8;outline:2px solid #d7edf4}#lobby{max-width:620px;margin:8vh auto 0;background:#fff;border:1px solid #dbe7ed;border-radius:14px;padding:30px;box-shadow:0 8px 28px #5273870c}label{display:grid;gap:8px;max-width:280px;font-size:14px;color:#536d7a}.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}#roomInput{width:155px}#error{color:#af3c3c;min-height:1.5em}.room-info{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;color:#526b78;font-size:14px;padding-bottom:16px;border-bottom:1px solid #dbe7ed}.room-info b{color:#233d49;font-size:16px;letter-spacing:.08em}#connection{white-space:nowrap}.opponents{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:24px 0;min-height:60px}.player{border:1px solid #d2e2e9;border-radius:9px;padding:10px 14px;background:#fff;max-width:290px;line-height:1.8;font-size:14px}.middle{height:165px;display:grid;place-items:center;color:#91a4ad;border-top:1px solid #e1ebef;border-bottom:1px solid #e1ebef}.lower,.bottom{display:grid;grid-template-columns:1fr 1fr;gap:36px;padding-top:22px;margin-top:10px}.lower>div,.bottom>div{min-height:74px}.lower>div:nth-child(2){padding:12px 16px;background:#ffffffa8;border-radius:8px}.lower p{margin:0;color:#526b78}#self{padding-top:25px;line-height:2}#generals,#hand{color:#91a2ac}[hidden]{display:none!important}@media(max-width:600px){header{padding:0 16px}main{padding:20px 14px}#lobby{margin:4vh auto;padding:22px}.lower,.bottom{gap:15px}.player{max-width:100%}}
 #handoff{max-width:620px;margin:8vh auto;background:#fff;border:1px solid #dbe7ed;border-radius:14px;padding:30px}#localPlayers{margin:16px 0}.local-player{border:1px solid #dbe7ed;border-radius:9px;margin:12px 0;padding:12px}.local-player .row{margin-top:8px}select{font:inherit;border:1px solid #c7d7df;background:#fff;border-radius:8px;padding:8px;color:inherit}#localStart,#handoffReveal{background:#d8edf3;border-color:#a7ccd8}
 
@@ -170,3 +234,81 @@ body #game{padding-bottom:175px}
 .market-panel .market-option{display:flex;flex-direction:column;gap:4px;white-space:normal;font-size:12px;line-height:1.4;padding:8px;margin:6px 0}
 .market-option strong{font-size:14px}.market-description{color:#607466}
 @media(max-width:700px){#game>.lower>div:nth-child(2){width:200px;max-height:40vh}}
+
+.war-panel{margin-top:10px;padding-top:8px;border-top:1px solid #d4e0d7}.war-panel h2{margin:0 0 6px}.war-panel select,.war-panel input,.war-panel button{max-width:100%;margin:3px;padding:5px;font-size:12px}.war-panel small{display:block;color:#718274}
+
+/* 战争操作区和点击选将 */
+#game>.war-panel{position:fixed;z-index:5;right:16px;bottom:215px;width:180px;max-height:220px;overflow:auto;margin:0;padding:8px;background:#f8faf5ef;border:1px solid #d4e0d7;border-radius:7px}
+#game .selectable-general{cursor:pointer}
+#game .general-selected{border-color:#d19331;background:#fff3d2;box-shadow:0 0 0 2px #e6b652}
+@media(max-width:700px){#game>.war-panel{right:8px;bottom:205px;width:135px;max-height:180px}}
+
+/* 战争阶段信息与操作 */
+#game>.war-panel{width:220px;max-height:min(42vh,300px);padding:12px;background:#f8faf5f5}
+#game>.lower>div:first-child{right:250px}
+.war-panel h2{font-size:15px;color:#354d3c}.war-panel .war-detail{margin:5px 0 9px;font-size:12px;line-height:1.5;color:#53675a}
+.war-controls{display:flex;flex-wrap:wrap;gap:6px}.war-controls select,.war-controls input{width:100%;min-width:0;margin:0}.war-controls button{margin:0;padding:6px 9px}.war-controls .war-primary{background:#dbece1;border-color:#9dbca6}
+.war-controls .war-selection{width:100%;margin:0;font-size:12px;color:#8b6429}.war-controls small{width:100%;font-size:11px}
+@media(max-width:700px){#game>.war-panel{width:160px;max-height:35vh;padding:8px}#game>.lower>div:first-child{right:175px}}
+
+/* 点击头像选目标，战争栏紧邻手牌右侧。 */
+.target-avatar{cursor:pointer;transition:box-shadow .15s,border-color .15s}
+.target-avatar:hover,.target-avatar:focus-visible{box-shadow:0 0 0 3px #c9dec9;outline:none}
+.target-avatar.target-selected{border-color:#cb8a32;box-shadow:0 0 0 3px #efcc89}
+#game>.war-panel{right:130px;bottom:42px;width:205px;max-height:165px;padding:8px}
+#game>.row{right:35px;bottom:72px}
+#game .bottom>div:nth-child(2){right:345px}
+#game>.lower>div:first-child{right:345px}
+@media(max-width:700px){#game>.war-panel{right:105px;bottom:32px;width:165px;max-height:160px}#game>.row{right:25px;bottom:62px}#game .bottom>div:nth-child(2),#game>.lower>div:first-child{right:280px}}
+
+/* 结束回合与战争操作栏顶部对齐。 */
+#game>.row{top:var(--war-panel-top,auto);bottom:auto}
+
+/* 多人时沿桌面上方和两侧布置，右侧为事件和商店留空间。 */
+#opponents:has(>.opponent:nth-child(2)){
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px 16px;
+  align-items:start;
+  padding-right:300px;
+}
+#opponents:has(>.opponent:nth-child(2))>.opponent{
+  min-width:0;
+  max-width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+#opponents:has(>.opponent:nth-child(2)) .opponent-header{max-width:100%}
+#opponents:has(>.opponent:nth-child(2)) .opponent-generals{
+  max-width:100%;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  padding-bottom:3px;
+}
+#opponents:has(>.opponent:nth-child(2)) .opponent-generals .general-mini{flex:0 0 78px}
+/* 多人：前两名对手位于左侧上下，其余向上方和右侧展开。 */
+#opponents:has(>.opponent:nth-child(2))>.opponent:nth-child(1){grid-column:1;grid-row:1}
+#opponents:has(>.opponent:nth-child(2))>.opponent:nth-child(2){grid-column:1;grid-row:2}
+#opponents:has(>.opponent:nth-child(3))>.opponent:nth-child(3){grid-column:2;grid-row:1}
+#opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(4){grid-column:3;grid-row:1}
+#opponents:has(>.opponent:nth-child(5))>.opponent:nth-child(5){grid-column:3;grid-row:2}
+@media(max-width:900px){
+  #opponents:has(>.opponent:nth-child(2)){grid-template-columns:repeat(2,minmax(0,1fr));padding-right:0}
+  #opponents:has(>.opponent:nth-child(2))>.opponent:nth-child(1){grid-column:1;grid-row:1}
+  #opponents:has(>.opponent:nth-child(2))>.opponent:nth-child(2){grid-column:1;grid-row:2}
+  #opponents:has(>.opponent:nth-child(3))>.opponent:nth-child(3){grid-column:2;grid-row:1}
+  #opponents:has(>.opponent:nth-child(4))>.opponent:nth-child(4){grid-column:2;grid-row:2}
+  #opponents:has(>.opponent:nth-child(5))>.opponent:nth-child(5){grid-column:2;grid-row:3}
+}
+
+/* 三人局：两位对手位于上方，同一行排列。 */
+#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3))){
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:start;
+  gap:16px;
+  margin-left:0;
+}
+#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3)))>.opponent:nth-child(1){grid-column:1;grid-row:1}
+#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3)))>.opponent:nth-child(2){grid-column:2;grid-row:1}

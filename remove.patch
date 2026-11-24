@@ -1,11 +1,13 @@
-diff --git a/game/deck.js b/game/deck.js
-index 19e43a6..b34e1c4 100644
---- a/game/deck.js
-+++ b/game/deck.js
-@@ -10,4 +10,4 @@ const generalDescriptions={
-   G05:'天意：战争中指定一名敌方参战武将，使其本次战争无法发动自身技能。',
--  G06:'戍卫：参与进攻或防守战争并战败时，自身额外损失 1 点生命，己方国家受到的本次战争伤害减半，向上取整。',
--  G07:'破阵：敌方国家受到的本次战争伤害增加 50%，增加部分向上取整。',
-+  G06:'戍卫：参与进攻或防守战争并战败时，自身额外损失 1 点生命，己方国家受到的本次战争伤害减半，向下取整。',
-+  G07:'破阵：敌方国家受到的本次战争伤害增加 50%，增加部分向下取整。',
-   G08:'无专属技能。'
+diff --git a/public/style.css b/public/style.css
+--- a/public/style.css
++++ b/public/style.css
+@@ -0,0 +1,9 @@
++/* 缩小标题栏，并固定三人局两位对手的位置。 */
++html body header{height:44px}
++#game#game>.room-info{height:44px}
++@media (min-width:901px){
++  #game#game#game#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3))){
++    position:fixed;top:54px;left:16px;right:305px;margin:0;padding:0;
++  }
++  #game#game#game#game #opponents:has(>.opponent:nth-child(2)):not(:has(>.opponent:nth-child(3)))>.opponent{transform:none}
++}

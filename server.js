@@ -17,10 +17,10 @@ const server = http.createServer(async (req,res) => {
       const {room,player}=rooms.authenticate(url.searchParams.get('room')||'',url.searchParams.get('token')||'');
       res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache','Connection':'keep-alive'}); rooms.subscribe(room,player,res); return;
     }
-    if (req.method==='POST' && ['/api/create','/api/join','/api/start','/api/end-turn','/api/deploy','/api/buy','/api/withdraw'].includes(url.pathname)) {
+    if (req.method==='POST' && ['/api/create','/api/join','/api/start','/api/end-turn','/api/deploy','/api/buy','/api/withdraw','/api/war-start','/api/war-respond'].includes(url.pathname)) {
       let data=''; for await(const part of req){data+=part;if(data.length>4096) throw new Error('请求过大');}
       const body=JSON.parse(data || '{}');
-      if (url.pathname === '/api/start' || url.pathname === '/api/end-turn' || url.pathname === '/api/deploy' || url.pathname === '/api/buy' || url.pathname === '/api/withdraw') {json(res,200,rooms.action(body.code || '',body.token || '',url.pathname.slice(5),body));return;}
+      if (url.pathname === '/api/start' || url.pathname === '/api/end-turn' || url.pathname === '/api/deploy' || url.pathname === '/api/buy' || url.pathname === '/api/withdraw' || url.pathname === '/api/war-start' || url.pathname === '/api/war-respond') {json(res,200,rooms.action(body.code || '',body.token || '',url.pathname.slice(5),body));return;}
       const name=nameOf(body.name);
       if(url.pathname==='/api/create'){const {room,player}=rooms.createRoom(name,body.selection);json(res,200,{code:room.code,token:player.token});}
       else {const code=String(body.code||'').trim().toUpperCase();const player=rooms.joinRoom(code,name,body.selection);json(res,200,{code,token:player.token});}return;
