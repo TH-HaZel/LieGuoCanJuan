@@ -1,5 +1,6 @@
 'use strict';
 const {seatDistance,calculateBattle,pursuitDamage,generalAfterDefeat}=require('./combat');
+const {generals}=require('./deck');
 function byId(room,id){return room.players.find(p=>p.id===id);}
 function eligible(g){return g && !(g.remaining>0);}
 function selected(player,indices){
@@ -38,13 +39,15 @@ function respondWar(room,player,body){
     const id=body.instanceId;
     if(id!==null&&typeof id!=='string')throw Error('无效的卡牌');
     const card=id===null?null:player.hand.find(c=>c.instanceId===id);
-    const allowed=player.id===a.id?['T05','T08','N02','N30']:['N08','N10','N11','N12','N30'];
+    const allowed=player.id===a.id?['T05','T08','N01','N02','N05','N06','N07','N30']:['N08','N09','N10','N11','N12','N14','N30'];
     if(id!==null&&(!card||!allowed.includes(card.id)||player.gold<card.cost))throw Error('卡牌不可使用或黄金不足');
     w.selections[player.id]=id;
     if(player.id===a.id){w.waitingId=d.id;room.event='进攻方已确认暗盖，等待防守方。';return;}
     const ac=w.selections[a.id]===null?null:a.hand.find(c=>c.instanceId===w.selections[a.id]);
     const dc=w.selections[d.id]===null?null:d.hand.find(c=>c.instanceId===w.selections[d.id]);
     for(const [owner,c] of [[a,ac],[d,dc]])if(c){owner.gold-=c.cost;owner.hand.splice(owner.hand.indexOf(c),1);owner.discard.push(c);}
+    const played=[[a,ac],[d,dc]].filter(([,card])=>card).map(([owner,card])=>({playerName:owner.name,card:{id:card.id,name:card.name,country:card.country,variety:card.variety,cost:card.cost,rarity:card.rarity,description:card.description}}));
+    if(played.length)room.lastPlayed=played;
     const revealed=`暗盖揭示：${a.name} ${ac?ac.name:'不出牌'}；${d.name} ${dc?dc.name:'不出牌'}。`;
     const attackGenerals=selected(a,w.attackerIndices),defenseGenerals=w.hardDefense?[]:selected(d,w.defenderIndices);
     for(const g of [...attackGenerals,...defenseGenerals]){g.remaining=g.cooldown;g.cooldownStart=room.turnSerial;}
@@ -53,12 +56,17 @@ function respondWar(room,player,body){
       room.event=revealed+'鸣金收兵生效，进攻武将战败，战争结束。';room.war=null;return;
     }
     const distance=seatDistance(room.players.filter(p=>p.health>0).map(p=>p.id),a.id,d.id);
-    const penalty=Math.max(0,(ac?.id==='T05'?0:distance-1)-(ac?.id==='N02'?1:0))+(dc?.id==='N11'?2:0);
-    const attack=teamPower(attackGenerals,'attack')+(ac?.id==='T08'?1:ac?.id==='N02'?1:0)-(dc?.id==='N12'?2:0);
-    const defense=(w.hardDefense?d.defense:teamPower(defenseGenerals,'defense'))+(dc?.id==='N08'?3:dc?.id==='N10'?5:0);
+    const penalty=ac?.id==='N07'?0:Math.max(0,(ac?.id==='T05'?0:distance-1)-(ac?.id==='N02'?1:0))+(dc?.id==='N11'?2:0);
+    const baseAttack=gs=>gs.reduce((sum,g)=>sum+(generals.find(base=>base.id===g.id)?.attack??0),0);
+    const n06Bonus=ac?.id==='N06'?1+(defenseGenerals.length&&baseAttack(attackGenerals)<baseAttack(defenseGenerals)?2:0):0;
+    const attack=n06Bonus+teamPower(attackGenerals,'attack')+(ac?.id==='T08'?1:ac?.id==='N02'?1:ac?.id==='N05'?2:ac?.id==='N07'?3:ac?.id==='N01'?2:0)-(dc?.id==='N12'?2:0);
+    const defense=(w.hardDefense?d.defense:teamPower(defenseGenerals,'defense'))+(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0);
     const result=calculateBattle({attack,defense,distance:penalty+1,hardDefense:w.hardDefense});
     w.result=result;
+    if(ac?.id==='N05'&&result.winner==='attacker')a.gold+=2;
+    if(dc?.id==='N09'&&result.winner==='defender')d.gold+=2;
     if(result.attackerGeneralDefeated)for(const g of attackGenerals)defeat(a,g);
+    if(ac?.id==='N01'&&result.winner==='defender')for(const g of attackGenerals)if(a.generals.includes(g))g.health=Math.max(0,g.health-1);
     if(result.defenderGeneralDefeated)for(const g of defenseGenerals)defeat(d,g);
     d.health-=result.defenderDamage;room.event=revealed+`战争结算：进攻 ${result.attackPower}，防守 ${result.defensePower}；${d.name}损失 ${result.defenderDamage} 生命。`;
     if(d.health<=0){finishElimination(room,d,a);room.war=null;return;}

@@ -326,3 +326,28 @@ body #game{padding-bottom:175px}
 #game>.war-toggle{position:fixed;right:130px;bottom:215px;z-index:6;padding:6px 10px;font-size:13px;background:#f5f9f4;border-color:#b7ccba}
 #game>.card-actions .card-confirm{padding:10px 18px;font-size:15px;font-weight:600;background:#d8edf3;border-color:#a7ccd8}
 @media(max-width:700px){#game>.war-toggle{right:105px;bottom:200px}}
+
+/* 中央展示最近公开的出牌，不展示尚未揭示的暗盖牌。 */
+#game>.middle{align-content:center;justify-items:center;gap:6px}
+.last-played-title{font-size:13px;color:#8298a0}
+.last-played-list{display:flex;justify-content:center;gap:8px}
+.last-played-card{width:130px;height:135px;display:flex;flex-direction:column;gap:4px;padding:8px;text-align:left;background:#f8faf7;border-color:#b6cab9;overflow:hidden}
+.last-played-card small{color:#718c78;font-size:11px}.last-played-card strong{font-size:14px}.last-played-card span{white-space:pre-line;overflow:hidden;font-size:11px;line-height:1.4;color:#637983}
+
+/* 中央事件提示只负责展示，不遮挡点击。 */
+#game>.event-toast{position:fixed;z-index:15;left:50%;top:37%;transform:translate(-50%,-50%);width:max-content;max-width:min(560px,80vw);padding:10px 24px;border:1px solid #d4c296;border-radius:8px;background:rgba(43,48,42,.92);box-shadow:0 6px 22px #24352c55;color:#fff9e8;font-size:17px;font-weight:600;line-height:1.6;text-align:center;white-space:pre-wrap;pointer-events:none}
+@media(max-width:700px){#game>.event-toast{top:35%;font-size:15px;padding:8px 16px}}
+
+/* 战争操作直接显示在棋盘上，不使用额外面板。 */
+#game>.war-actions{position:fixed;right:145px;bottom:190px;z-index:6;max-width:min(310px,65vw);display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.war-actions .war-detail,.war-actions .war-selection{margin:0;color:#526b60;font-size:12px;line-height:1.35;text-align:right}
+.war-action-buttons{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px}
+.war-action-buttons button{padding:8px 12px;font-size:14px;background:#f5f9f4;border-color:#b7ccba}
+.war-action-buttons .war-primary{background:#d8edf3;border-color:#a7ccd8}
+.war-action-buttons input{width:64px;min-width:0;padding:6px;font-size:14px}
+.war-action-buttons .war-selection{width:100%}
+#game>.row{top:auto;bottom:245px}
+@media(max-width:700px){#game>.war-actions{right:105px;bottom:172px;max-width:60vw}#game>.row{top:auto;bottom:220px}}
+
+/* 轻量的中央提示文字 */
+#game>.event-toast{width:auto;max-width:min(560px,80vw);padding:4px 12px;border:0;background:transparent;box-shadow:none;color:#42594b;text-shadow:0 1px 2px #fff,0 0 8px #fff,0 0 12px #fff}
