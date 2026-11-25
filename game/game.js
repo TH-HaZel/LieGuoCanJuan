@@ -5,7 +5,8 @@ const cardEffects=require('./cardEffects');
 function refreshMarkets(room){for(const p of room.players)p.market=shuffle(p.marketPool.map(g=>g.id)).slice(0,2);}
 function requireTurn(room,player){if(room.war)throw Error('战争尚未结束');if(room.phase!=='playing'||room.players[room.turnIndex].id!==player.id)throw new Error('只能在自己的回合操作');}
 function receiveGeneral(player,g){if(player.hand.length<10){player.hand.push(g);return false;}const reset=general(g.id);reset.instanceId=g.instanceId;reset.deployAfterTurn=g.deployAfterTurn;player.discard.push(reset);return true;}
-function beginTurn(room,player){player.turnsStarted++;player.gold+=player.pendingPolicy||0;player.pendingPolicy=0;player.purchased=false;player.gold+=Math.min(room.round,7);if(player.country==='唐朝')player.gold+=1;return drawCard(player);}
+function startRound(room){for(const p of room.players){if(p.health<=0)continue;for(const effect of p.recoverySchedule||[]){const offset=room.round-effect.start;if(offset>=0&&offset<3)p.health=Math.min(p.maxHealth,p.health+[3,2,1][offset]);}p.recoverySchedule=(p.recoverySchedule||[]).filter(effect=>room.round<effect.start+2);}}
+function beginTurn(room,player){player.turnsStarted++;player.gold+=player.pendingPolicy||0;player.pendingPolicy=0;player.purchased=false;const penalties=player.incomePenalties||[];player.gold+=Math.max(0,Math.min(room.round,7)-penalties.filter(p=>p.round===room.round).reduce((sum,p)=>sum+p.amount,0));player.incomePenalties=penalties.filter(p=>p.round>room.round);if(player.country==='唐朝')player.gold+=1;return drawCard(player);}
 function startGame(room, player) {
   if(room.phase!=='waiting')throw new Error('游戏已经开始');
   if(room.players[0].id!==player.id)throw new Error('只有房主可以开始游戏');
@@ -21,7 +22,7 @@ function endTurn(room, player) {
   if(room.players[room.turnIndex].id!==player.id)throw new Error('还没有轮到你');
   for(const g of [...player.generals,...player.hand])if(g.kind==='general'&&g.remaining>0&&g.cooldownStart!==room.turnSerial)g.remaining--;
   room.turnSerial++;room.mainActionUsed=false;
-  do{room.turnIndex++;if(room.turnIndex>=room.players.length){room.turnIndex=0;room.round++;refreshMarkets(room);}}while(room.players[room.turnIndex].health<=0);
+  do{room.turnIndex++;if(room.turnIndex>=room.players.length){room.turnIndex=0;room.round++;startRound(room);refreshMarkets(room);}}while(room.players[room.turnIndex].health<=0);
   const next=room.players[room.turnIndex],result=beginTurn(room,next);room.event=`${player.name}结束回合；${next.name}的回合：${result}。`;
 }
 function deploy(room,player,index){

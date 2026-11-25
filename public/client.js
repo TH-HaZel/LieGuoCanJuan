@@ -100,7 +100,7 @@ function showCardDetails(card){
   const title=document.createElement('h2');title.textContent=card.name;
   const description=document.createElement('p');description.textContent=card.description||'暂无介绍';
   const note=document.createElement('small');
-  const supported=['T02','T03','T14','T16','T05','T08','N01','N02','N05','N06','N07','N08','N09','N10','N11','N12','N14','N15','N16','N17','N20','N30'];
+  const supported=['T02','T03','T14','T16','T05','T08','N01','N02','N05','N06','N07','N08','N09','N10','N11','N12','N14','N15','N16','N17','N20','N21','N24','N26','N30'];
   note.textContent=card.kind==='general'?(card.description==='无专属技能。'?'无专属技能':'武将技能暂未实现'):(supported.includes(card.id)?'此牌效果已实现':'此牌效果尚未实现');
   const close=document.createElement('button');close.textContent='关闭';
   const dismiss=()=>{overlay.remove();document.removeEventListener('keydown',onKey);};
@@ -193,7 +193,7 @@ function render(state){
   if(selectedCardId&&!me.hand.some(c=>c.instanceId===selectedCardId)){selectedCardId=null;selectedCardTarget=null;}
   const chosen=me.hand.find(c=>c.instanceId===selectedCardId);
   const targetMode=!!chosen&&chosen.id==='T03'&&!state.war&&state.currentPlayerId===me.id;
-  const countryTargetMode=!!chosen&&chosen.id==='T16'&&!state.war&&state.currentPlayerId===me.id;
+  const countryTargetMode=!!chosen&&['T16','N24'].includes(chosen.id)&&!state.war&&state.currentPlayerId===me.id;
   const generals=$('generals');generals.replaceChildren();
   if(!me.generals.length)generals.textContent='暂无将领';
   me.generals.forEach((g,index)=>{
