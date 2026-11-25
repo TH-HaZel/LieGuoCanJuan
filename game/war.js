@@ -9,14 +9,25 @@ function selected(player,indices){
   if(!Array.isArray(indices)||indices.length<1||indices.length>5||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(player.generals[i])))throw Error('请选择一至五名不同的可出战武将');
   return indices.map(i=>player.generals[i]);
 }
+function validateExperience(player,indices,input={}){
+  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('战争经验选择无效');
+  for(const [key,value] of Object.entries(input)){
+    const index=Number(key),g=player.generals[index];
+    if(!Number.isInteger(index)||String(index)!==key||!indices.includes(index)||!Number.isSafeInteger(value)||value<0||value>(g.warExperience||0))throw Error('战争经验选择无效');
+  }
+  return Object.fromEntries(Object.entries(input).filter(([,v])=>v>0));
+}
+function spendExperience(player,choice){for(const [index,count] of Object.entries(choice||{}))player.generals[Number(index)].warExperience-=count;}
 function teamPower(generals,attribute){return Math.max(0,generals.reduce((sum,g)=>sum+g[attribute]+permanentBonuses.total(g,attribute),0)-generals.length*(generals.length-1)/2);}
 function startWar(room,player,body){
+  if(room.neutralRound)throw Error('中立资源争夺进行中');
   if(room.pendingChoice)throw Error('请先完成弃牌');
   if(room.phase!=='playing'||room.players[room.turnIndex].id!==player.id)throw Error('只能在自己的回合宣战');
   if(room.war)throw Error('战争尚未结束');if(room.mainActionUsed)throw Error('本回合已使用主要行动');
   const target=byId(room,body.targetId);if(!target||target===player||target.health<=0)throw Error('目标无效');
   selected(player,body.indices);
-  room.mainActionUsed=true;room.war={attackerId:player.id,defenderId:target.id,attackerIndices:[...body.indices],phase:'negotiation',waitingId:target.id,offers:0};room.event=`${player.name}向${target.name}宣战，等待防守方回应。`;
+  const experience=validateExperience(player,body.indices,body.experience);
+  room.mainActionUsed=true;room.war={attackerExperience:experience,attackerId:player.id,defenderId:target.id,attackerIndices:[...body.indices],phase:'negotiation',waitingId:target.id,offers:0};room.event=`${player.name}向${target.name}宣战，等待防守方回应。`;
 }
 function respondWar(room,player,body){
   const w=room.war;if(!w||w.waitingId!==player.id)throw Error('当前不是你的战争响应阶段');
@@ -33,7 +44,7 @@ function respondWar(room,player,body){
   if(w.phase==='defense'){
     const hard=body.choice==='hard';if(!hard&&body.choice!=='general')throw Error('请选择武将或国家硬抗');
     if(!hard)selected(d,body.indices);
-    w.defenderIndices=hard?[]:[...body.indices];w.hardDefense=hard;
+    w.defenderIndices=hard?[]:[...body.indices];w.hardDefense=hard;w.defenderExperience=validateExperience(player,w.defenderIndices,body.experience);
     w.phase='conceal';w.waitingId=a.id;w.selections={};
     room.event='双方依次暗盖战争牌，全部确认后揭示。';return;
   }
@@ -53,6 +64,7 @@ function respondWar(room,player,body){
     if(played.length)room.lastPlayed=played;
     const revealed=`暗盖揭示：${a.name} ${ac?ac.name:'不出牌'}；${d.name} ${dc?dc.name:'不出牌'}。`;
     const attackGenerals=selected(a,w.attackerIndices),defenseGenerals=w.hardDefense?[]:selected(d,w.defenderIndices);
+    spendExperience(a,w.attackerExperience);spendExperience(d,w.defenderExperience);
     for(const g of [...attackGenerals,...defenseGenerals]){const active=statuses.active(g,room.round),shield=active.find(e=>e.kind==='war_immunity'),debuff=active.find(e=>['N04','N23','N25'].includes(e.source)&&e.polarity==='negative');if(shield&&debuff)g.statuses=g.statuses.filter(e=>e.id!==shield.id&&e.id!==debuff.id);}
     for(const g of [...attackGenerals,...defenseGenerals]){g.remaining=g.cooldown;g.cooldownStart=room.turnSerial;}
     if((ac?.id==='N29'&&dc?.id!=='N29'&&dc?.id!=='N30')||(dc?.id==='N29'&&ac?.id!=='N29'&&ac?.id!=='N30')){
@@ -67,9 +79,9 @@ function respondWar(room,player,body){
     const baseAttack=gs=>gs.reduce((sum,g)=>sum+(generals.find(base=>base.id===g.id)?.attack??0),0);
     const n06Bonus=ac?.id==='N06'?1+(defenseGenerals.length&&baseAttack(attackGenerals)<baseAttack(defenseGenerals)?2:0):0;
     const attackCardBonus=n06Bonus+(ac?.id==='T08'?1:ac?.id==='N02'?1:ac?.id==='N05'?2:ac?.id==='N07'?3:ac?.id==='N01'?2:0);
-    const attackStats=attackGenerals.map(g=>({...g,attack:g.attack+statuses.active(g,room.round).filter(e=>e.kind==='attack').reduce((sum,e)=>sum+(e.value>0&&statuses.active(g,room.round).some(s=>s.kind==='war_lock')?0:e.value>0&&dc?.id==='N13'?Math.max(0,e.value-1):e.value),0)}));
+    const attackStats=attackGenerals.map((g,i)=>({...g,attack:g.attack+(w.attackerExperience[w.attackerIndices[i]]||0)+statuses.active(g,room.round).filter(e=>e.kind==='attack').reduce((sum,e)=>sum+(e.value>0&&statuses.active(g,room.round).some(s=>s.kind==='war_lock')?0:e.value>0&&dc?.id==='N13'?Math.max(0,e.value-1):e.value),0)}));
     const attack=teamPower(attackStats,'attack')+Math.max(0,attackCardBonus-(dc?.id==='N13'?1:0))-(dc?.id==='N12'?2:0);
-    const defenseStats=defenseGenerals.map(g=>({...g,defense:g.defense+statuses.active(g,room.round).filter(e=>e.kind==='defense').reduce((sum,e)=>sum+e.value,0)}));
+    const defenseStats=defenseGenerals.map((g,i)=>({...g,defense:g.defense+(w.defenderExperience[w.defenderIndices[i]]||0)+statuses.active(g,room.round).filter(e=>e.kind==='defense').reduce((sum,e)=>sum+e.value,0)}));
     const defense=(w.hardDefense?d.health+d.defense:teamPower(defenseStats,'defense'))+(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0);
     const result=calculateBattle({attack,defense,distance:penalty+1,hardDefense:w.hardDefense});
     w.result=result;
@@ -78,7 +90,7 @@ function respondWar(room,player,body){
     if(ac?.id==='N05'&&result.winner==='attacker')a.gold+=2;
     if(dc?.id==='N09'&&result.winner==='defender')d.gold+=2;
     if(result.attackerGeneralDefeated)for(const g of attackGenerals)defeat(a,g);
-    if(ac?.id==='N01'&&result.winner==='defender')for(const g of attackGenerals)if(a.generals.includes(g))g.health=Math.max(0,g.health-1);
+    if(ac?.id==='N01'&&result.winner==='defender')for(const g of attackGenerals)if(a.generals.includes(g))defeat(a,g);
     if(result.defenderGeneralDefeated)for(const g of defenseGenerals)defeat(d,g);
     d.health-=result.defenderDamage;room.event=revealed+`战争结算：进攻 ${result.attackPower}，防守 ${result.defensePower}；${d.name}损失 ${result.defenderDamage} 生命。`;
     const eliminated=d.health<=0;if(eliminated){finishElimination(room,d,a);room.war=null;}
