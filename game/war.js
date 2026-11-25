@@ -3,6 +3,10 @@ const {seatDistance,calculateBattle,pursuitDamage,generalAfterDefeat}=require('.
 const {generals}=require('./deck');
 const statuses=require('./statuses');
 const permanentBonuses=require('./permanentBonuses');
+const generalSkills=require('./generalSkills');
+const tianyi=require('./tianyi');
+const allianceFlow=require('./allianceFlow');
+const alliances=require('./alliances');
 function byId(room,id){return room.players.find(p=>p.id===id);}
 function eligible(g){return g && !(g.remaining>0);}
 function selected(player,indices){
@@ -18,7 +22,7 @@ function validateExperience(player,indices,input={}){
   return Object.fromEntries(Object.entries(input).filter(([,v])=>v>0));
 }
 function spendExperience(player,choice){for(const [index,count] of Object.entries(choice||{}))player.generals[Number(index)].warExperience-=count;}
-function teamPower(generals,attribute){return Math.max(0,generals.reduce((sum,g)=>sum+g[attribute]+permanentBonuses.total(g,attribute),0)-generals.length*(generals.length-1)/2);}
+function teamPower(generals,attribute,multiplier=1){return Math.max(0,generals.reduce((sum,g)=>sum+Math.max(0,g[attribute]+permanentBonuses.total(g,attribute)-permanentBonuses.penalty(g,attribute))*multiplier,0)-generals.length*(generals.length-1)/2);}
 function startWar(room,player,body){
   if(room.neutralRound)throw Error('中立资源争夺进行中');
   if(room.pendingChoice)throw Error('请先完成弃牌');
@@ -28,6 +32,16 @@ function startWar(room,player,body){
   selected(player,body.indices);
   const experience=validateExperience(player,body.indices,body.experience);
   room.mainActionUsed=true;room.war={attackerExperience:experience,attackerId:player.id,defenderId:target.id,attackerIndices:[...body.indices],phase:'negotiation',waitingId:target.id,offers:0};room.event=`${player.name}向${target.name}宣战，等待防守方回应。`;
+}
+function beginTianyi(room,w,a,d) {
+  const requests=[];
+  for(const [owner,own,enemy] of [[a,w.attackerIndices,w.defenderIndices],[d,w.defenderIndices,w.attackerIndices]]) {
+    if(!enemy.length)continue;
+    for(const index of own) {const g=owner.generals[index];if(g?.id==='G05'&&g.health>0)requests.push({ownerId:owner.id,index});}
+  }
+  w.tianyiRequests=requests;w.tianyiChoices=[];
+  if(requests.length){w.phase='tianyi';w.waitingId=requests[0].ownerId;room.event='等待裴行俭选择天意目标。';}
+  else {w.phase='conceal';w.waitingId=a.id;w.selections={};room.event='双方依次暗盖战争牌，全部确认后揭示。';}
 }
 function respondWar(room,player,body){
   const w=room.war;if(!w||w.waitingId!==player.id)throw Error('当前不是你的战争响应阶段');
@@ -45,8 +59,16 @@ function respondWar(room,player,body){
     const hard=body.choice==='hard';if(!hard&&body.choice!=='general')throw Error('请选择武将或国家硬抗');
     if(!hard)selected(d,body.indices);
     w.defenderIndices=hard?[]:[...body.indices];w.hardDefense=hard;w.defenderExperience=validateExperience(player,w.defenderIndices,body.experience);
-    w.phase='conceal';w.waitingId=a.id;w.selections={};
-    room.event='双方依次暗盖战争牌，全部确认后揭示。';return;
+    beginTianyi(room,w,a,d);return;
+  }
+  if(w.phase==='tianyi'){
+    const request=w.tianyiRequests[w.tianyiChoices.length];
+    const enemyIndices=player.id===a.id?w.defenderIndices:w.attackerIndices;
+    if(body.choice!=='target'||(body.targetIndex!==null&&(!Number.isInteger(body.targetIndex)||!enemyIndices.includes(body.targetIndex))))throw Error('请选择对方参战武将或放弃天意');
+    w.tianyiChoices.push({ownerId:player.id,index:request.index,targetIndex:body.targetIndex});
+    if(w.tianyiChoices.length<w.tianyiRequests.length){w.waitingId=w.tianyiRequests[w.tianyiChoices.length].ownerId;room.event='等待裴行俭选择天意目标。';}
+    else {w.phase='conceal';w.waitingId=a.id;w.selections={};room.event='双方依次暗盖战争牌，全部确认后揭示。';}
+    return;
   }
   if(w.phase==='conceal'){
     if(body.choice!=='card')throw Error('请选择暗盖牌或不出牌');
@@ -66,6 +88,12 @@ function respondWar(room,player,body){
     const attackGenerals=selected(a,w.attackerIndices),defenseGenerals=w.hardDefense?[]:selected(d,w.defenderIndices);
     spendExperience(a,w.attackerExperience);spendExperience(d,w.defenderExperience);
     for(const g of [...attackGenerals,...defenseGenerals]){const active=statuses.active(g,room.round),shield=active.find(e=>e.kind==='war_immunity'),debuff=active.find(e=>['N04','N23','N25'].includes(e.source)&&e.polarity==='negative');if(shield&&debuff)g.statuses=g.statuses.filter(e=>e.id!==shield.id&&e.id!==debuff.id);}
+    const blockedGenerals=new Set([...attackGenerals,...defenseGenerals].filter(g=>statuses.active(g,room.round).some(e=>e.kind==='war_lock')));
+    const skillChoices=(w.tianyiChoices||[]).filter(choice=>choice.targetIndex!==null).map(choice=>{
+      const owner=byId(room,choice.ownerId),enemy=owner===a?d:a;
+      return {source:owner.generals[choice.index],target:enemy.generals[choice.targetIndex]};
+    });
+    tianyi.resolve(skillChoices,blockedGenerals,room.round);
     for(const g of [...attackGenerals,...defenseGenerals]){g.remaining=g.cooldown;g.cooldownStart=room.turnSerial;}
     if((ac?.id==='N29'&&dc?.id!=='N29'&&dc?.id!=='N30')||(dc?.id==='N29'&&ac?.id!=='N29'&&ac?.id!=='N30')){
       const victim=ac?.id==='N29'?d:a,team=ac?.id==='N29'?defenseGenerals:attackGenerals;
@@ -82,8 +110,14 @@ function respondWar(room,player,body){
     const attackStats=attackGenerals.map((g,i)=>({...g,attack:g.attack+(w.attackerExperience[w.attackerIndices[i]]||0)+statuses.active(g,room.round).filter(e=>e.kind==='attack').reduce((sum,e)=>sum+(e.value>0&&statuses.active(g,room.round).some(s=>s.kind==='war_lock')?0:e.value>0&&dc?.id==='N13'?Math.max(0,e.value-1):e.value),0)}));
     const attack=teamPower(attackStats,'attack')+Math.max(0,attackCardBonus-(dc?.id==='N13'?1:0))-(dc?.id==='N12'?2:0);
     const defenseStats=defenseGenerals.map((g,i)=>({...g,defense:g.defense+(w.defenderExperience[w.defenderIndices[i]]||0)+statuses.active(g,room.round).filter(e=>e.kind==='defense').reduce((sum,e)=>sum+e.value,0)}));
-    const defense=(w.hardDefense?d.health+d.defense:teamPower(defenseStats,'defense'))+(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0);
-    const result=calculateBattle({attack,defense,distance:penalty+1,hardDefense:w.hardDefense});
+    const defenseMultiplier=generalSkills.hasDefenseDoubler(defenseGenerals,blockedGenerals)?2:1;
+    const defense=(w.hardDefense?d.health+d.defense:teamPower(defenseStats,'defense',defenseMultiplier))+(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0);
+    const attackAfterAlliance=allianceFlow.penalty(a,room.round)?Math.max(0,attack-penalty-1)+penalty:attack;
+    const defenseAfterAlliance=allianceFlow.penalty(d,room.round)&&defense>0?Math.max(0,defense-1):defense;
+    const result=calculateBattle({attack:attackAfterAlliance,defense:defenseAfterAlliance,distance:penalty+1,hardDefense:w.hardDefense});
+    const attackerDamageBoost=generalSkills.hasDamageBoost(attackGenerals,blockedGenerals);
+    w.defenderDamageBoost=generalSkills.hasDamageBoost(defenseGenerals,blockedGenerals);
+    result.defenderDamage=generalSkills.boostDamage(result.defenderDamage,attackerDamageBoost);
     w.result=result;
     for(const [team,side] of [[attackGenerals,'attacker'],[defenseGenerals,'defender']])for(const g of team){const effects=statuses.active(g,room.round);const healing=effects.filter(e=>e.kind==='heal_on_win').reduce((sum,e)=>sum+e.value,0);if(healing&&result.winner===side&&g.health>0)g.health=Math.min(g.maxHealth,g.health+healing);const cooldown=effects.filter(e=>e.kind==='cooldown_after_battle').reduce((sum,e)=>sum+e.value,0);if(cooldown)g.remaining=Math.max(0,g.remaining-cooldown);g.statuses=effects.filter(e=>!['attack','defense','heal_on_win','cooldown_after_battle','war_lock'].includes(e.kind));}
     for(const [owner,side] of [[a,'attacker'],[d,'defender']]){if(result.winner===side)owner.gold+=(owner.warIncome||0)*5;owner.warIncome=0;}
@@ -92,24 +126,32 @@ function respondWar(room,player,body){
     if(result.attackerGeneralDefeated)for(const g of attackGenerals)defeat(a,g);
     if(ac?.id==='N01'&&result.winner==='defender')for(const g of attackGenerals)if(a.generals.includes(g))defeat(a,g);
     if(result.defenderGeneralDefeated)for(const g of defenseGenerals)defeat(d,g);
+    let attackerDamageReduction=false,defenderDamageReduction=false;
+    for(const [owner,team,side] of [[a,attackGenerals,'attacker'],[d,defenseGenerals,'defender']])for(const g of team){
+      const outcome=result.winner==='draw'?'draw':result.winner===side?'win':'loss';
+      const triggered=generalSkills.afterBattle(owner,g,blockedGenerals.has(g),outcome);
+      if(g.id==='G06'&&outcome==='loss'&&triggered){if(side==='attacker')attackerDamageReduction=true;else defenderDamageReduction=true;}
+    }
+    w.attackerDamageReduction=attackerDamageReduction;
+    if(defenderDamageReduction)result.defenderDamage=Math.floor(result.defenderDamage/2);
     d.health-=result.defenderDamage;room.event=revealed+`战争结算：进攻 ${result.attackPower}，防守 ${result.defensePower}；${d.name}损失 ${result.defenderDamage} 生命。`;
     const eliminated=d.health<=0;if(eliminated){finishElimination(room,d,a);room.war=null;}
     const choices=[];for(const [owner,team] of [[a,attackGenerals],[d,defenseGenerals]])for(const g of team){const effects=(g.statuses||[]).filter(e=>e.kind==='permanent_after_war');g.statuses=(g.statuses||[]).filter(e=>e.kind!=='permanent_after_war');if(room.phase==='playing'&&owner.health>0&&owner.generals.includes(g))for(const effect of effects)choices.push({type:'permanent-bonus',playerId:owner.id,general:g});}if(choices.length){room.pendingBonuses=choices;room.pendingChoice=choices[0];}if(eliminated)return;
     if(result.canPursueOrClaim){w.phase='aftermath';w.waitingId=d.id;}else room.war=null;return;
   }
   if(w.phase==='aftermath'){
-    if(body.choice==='pursue'){a.health-=pursuitDamage(w.result.delta);room.event=`${d.name}乘胜追击，${a.name}损失 ${pursuitDamage(w.result.delta)} 生命。`;if(a.health<=0)finishElimination(room,a,d);room.war=null;return;}
+    if(body.choice==='pursue'){let damage=generalSkills.boostDamage(pursuitDamage(w.result.delta),w.defenderDamageBoost);if(w.attackerDamageReduction)damage=Math.floor(damage/2);a.health-=damage;room.event=`${d.name}乘胜追击，${a.name}损失 ${damage} 生命。`;if(a.health<=0)finishElimination(room,a,d);room.war=null;return;}
     if(body.choice!=='claim'||!Number.isSafeInteger(body.amount)||body.amount<0||body.amount>a.gold)throw Error('索赔金额无效或进攻方黄金不足');
     w.amount=body.amount;w.phase='claim_response';w.waitingId=a.id;room.event=`${d.name}要求赔偿 ${w.amount} 黄金。`;return;
   }
   if(w.phase==='claim_response'){
     if(body.choice==='accept'){if(a.gold<w.amount)throw Error('进攻方黄金不足');a.gold-=w.amount;d.gold+=w.amount;room.event='进攻方支付赔偿，战争结束。';}
-    else if(body.choice==='reject'){const damage=pursuitDamage(w.result.delta,true);a.health-=damage;room.event=`进攻方拒绝赔偿，受到 ${damage} 点追击伤害。`;if(a.health<=0)finishElimination(room,a,d);}
+    else if(body.choice==='reject'){let damage=generalSkills.boostDamage(pursuitDamage(w.result.delta,true),w.defenderDamageBoost);if(w.attackerDamageReduction)damage=Math.floor(damage/2);a.health-=damage;room.event=`进攻方拒绝赔偿，受到 ${damage} 点追击伤害。`;if(a.health<=0)finishElimination(room,a,d);}
     else throw Error('请选择接受或拒绝');room.war=null;return;
   }
   throw Error('战争阶段无效');
 }
 function defeat(player,g){const result=generalAfterDefeat(g.health);g.health=result.health;if(result.status==='dead')player.generals.splice(player.generals.indexOf(g),1);}
-function finishElimination(room,loser,winner){loser.health=0;winner.gold+=Math.floor(Math.max(0,loser.gold)*0.3);loser.gold=0;room.event+=` ${loser.name}灭亡。`;const alive=room.players.filter(p=>p.health>0);if(alive.length===1){room.phase='finished';room.event+=` ${alive[0].name}获胜。`;}}
-function viewWar(room,player){const w=room.war;if(!w)return null;const result={phase:w.phase,attackerId:w.attackerId,defenderId:w.defenderId,waitingId:w.waitingId,offers:w.offers};if(w.phase==='offer_response'||w.phase==='claim_response')result.amount=w.amount;if(w.result)result.result=w.result;if(player.id===w.attackerId)result.attackerIndices=w.attackerIndices;return result;}
+function finishElimination(room,loser,winner){loser.health=0;room.alliances=alliances.prune(room.alliances||[],room.players.filter(p=>p.health>0).map(p=>p.id));winner.gold+=Math.floor(Math.max(0,loser.gold)*0.3);loser.gold=0;room.event+=` ${loser.name}灭亡。`;const alive=room.players.filter(p=>p.health>0);if(alive.length===1){room.phase='finished';room.event+=` ${alive[0].name}获胜。`;}}
+function viewWar(room,player){const w=room.war;if(!w)return null;const result={phase:w.phase,attackerId:w.attackerId,defenderId:w.defenderId,waitingId:w.waitingId,offers:w.offers};if(w.phase==='offer_response'||w.phase==='claim_response')result.amount=w.amount;if(w.result)result.result=w.result;if(player.id===w.attackerId)result.attackerIndices=w.attackerIndices;if(w.phase==='tianyi'&&w.waitingId===player.id){const enemy=byId(room,player.id===w.attackerId?w.defenderId:w.attackerId),indices=player.id===w.attackerId?w.defenderIndices:w.attackerIndices;result.tianyiOptions=indices.map(index=>({index,name:enemy.generals[index].name}));}return result;}
 module.exports={startWar,respondWar,viewWar};

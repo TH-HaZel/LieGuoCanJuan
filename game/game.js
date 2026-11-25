@@ -7,7 +7,7 @@ const permanentBonuses=require('./permanentBonuses');
 const neutral=require('./neutral');
 const neutralRound=require('./neutralRound');
 function refreshMarkets(room){for(const p of room.players)p.market=shuffle(p.marketPool.map(g=>g.id)).slice(0,2);}
-function requireTurn(room,player){if(room.neutralRound)throw Error('中立资源争夺进行中');if(room.pendingChoice)throw Error('请先完成弃牌');if(room.war)throw Error('战争尚未结束');if(room.phase!=='playing'||room.players[room.turnIndex].id!==player.id)throw new Error('只能在自己的回合操作');}
+function requireTurn(room,player){if(room.pendingAlliance)throw Error('同盟表决进行中');if(room.neutralRound)throw Error('中立资源争夺进行中');if(room.pendingChoice)throw Error('请先完成弃牌');if(room.war)throw Error('战争尚未结束');if(room.phase!=='playing'||room.players[room.turnIndex].id!==player.id)throw new Error('只能在自己的回合操作');}
 function receiveGeneral(player,g){if(player.hand.length<10){player.hand.push(g);return false;}const reset=general(g.id);reset.instanceId=g.instanceId;reset.deployAfterTurn=g.deployAfterTurn;player.discard.push(reset);return true;}
 function startRound(room){for(const p of room.players){if(p.health<=0)continue;for(const effect of p.recoverySchedule||[]){const offset=room.round-effect.start;if(offset>=0&&offset<3)p.health=Math.min(p.maxHealth,p.health+[3,2,1][offset]);}p.recoverySchedule=(p.recoverySchedule||[]).filter(effect=>room.round<effect.start+2);}}
 function beginTurn(room,player){player.turnsStarted++;player.gold+=player.pendingPolicy||0;player.pendingPolicy=0;player.purchased=false;const penalties=player.incomePenalties||[];player.gold+=Math.max(0,Math.min(room.round,7)-penalties.filter(p=>p.round===room.round).reduce((sum,p)=>sum+p.amount,0));player.incomePenalties=penalties.filter(p=>p.round>room.round);if(player.country==='唐朝')player.gold+=1;const result=drawCard(player);for(let i=0;i<(player.goldenAge||0);i++){player.defense+=2;drawCard(player);}for(let i=0;i<(player.taxEffects||0);i++){player.gold++;drawCard(player);}return result;}
@@ -15,12 +15,13 @@ function startGame(room, player) {
   if(room.phase!=='waiting')throw new Error('游戏已经开始');
   if(room.players[0].id!==player.id)throw new Error('只有房主可以开始游戏');
   if(room.players.length<2)throw new Error('至少需要 2 名玩家');
-  room.phase='playing';room.turnIndex=0;room.round=1;room.turnSerial=1;room.mainActionUsed=false;room.neutralPool=neutral.createNeutralPool();neutral.revealNeutral(room.neutralPool);refreshMarkets(room);
+  room.alliances=[];room.pendingAlliance=null;room.phase='playing';room.turnIndex=0;room.round=1;room.turnSerial=1;room.mainActionUsed=false;room.neutralPool=neutral.createNeutralPool();neutral.revealNeutral(room.neutralPool);refreshMarkets(room);
   for(const p of room.players)for(let i=0;i<5;i++)drawCard(p);
   const result=beginTurn(room,room.players[0]);
   room.event=`游戏开始，${room.players[0].name}的回合：${result}。`;
 }
 function endTurn(room, player) {
+  if(room.pendingAlliance)throw Error('同盟表决进行中');
   if(room.neutralRound)throw Error('中立资源争夺进行中');
   if(room.phase!=='playing')throw new Error('游戏尚未开始');
   if(room.war)throw new Error('战争尚未结束');

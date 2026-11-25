@@ -351,3 +351,6 @@ body #game{padding-bottom:175px}
 
 /* 轻量的中央提示文字 */
 #game>.event-toast{width:auto;max-width:min(560px,80vw);padding:4px 12px;border:0;background:transparent;box-shadow:none;color:#42594b;text-shadow:0 1px 2px #fff,0 0 8px #fff,0 0 12px #fff}
+
+/* 同盟信息简洁显示在事件旁。 */
+.alliance-status{display:flex;flex-wrap:wrap;gap:4px 8px;color:#526b78;font-size:12px;line-height:1.4}.alliance-status strong{font-size:12px}

@@ -1,5 +1,7 @@
 'use strict';
 const contest = require('./neutralContest');
+const tianyi = require('./tianyi');
+const allianceFlow = require('./allianceFlow');
 const { compareNeutralClaims } = require('./neutral');
 const generals = require('./generals.json');
 const statuses = require('./statuses');
@@ -36,18 +38,22 @@ function applyExperience(r, state) {
   state.experienceApplied = true;
 }
 function applyAttackStatuses(state, round, weather = false) {
+  state.blockedGenerals = new Set();
+  for (const p of state.players) for (const g of [state.mains.get(p.id), state.supports.get(p.id)].filter(Boolean)) {
+    const effects = statuses.active(g, round), shield = effects.find(e => e.kind === 'war_immunity');
+    const debuff = effects.find(e => ['N04','N23','N25'].includes(e.source) && e.polarity === 'negative');
+    if (shield && debuff) g.statuses = (g.statuses || []).filter(e => e.id !== shield.id && e.id !== debuff.id);
+    if (statuses.active(g,round).some(e => e.kind === 'war_lock')) state.blockedGenerals.add(g);
+  }
+  tianyi.resolve(state.tianyiChoices || [], state.blockedGenerals, round);
   const additions = new Map();
   for (const p of state.players) {
     let change = 0;
     for (const g of [state.mains.get(p.id), state.supports.get(p.id)].filter(Boolean)) {
-      const effects = statuses.active(g, round);
-      const shield = effects.find(e => e.kind === 'war_immunity');
-      const debuff = effects.find(e => ['N04','N23','N25'].includes(e.source) && e.polarity === 'negative');
-      if (shield && debuff) g.statuses = (g.statuses || []).filter(e => e.id !== shield.id && e.id !== debuff.id);
       const remaining = statuses.active(g, round);
       const active = remaining.filter(e => e.kind === 'attack' && ['N22','N23'].includes(e.source));
       const locked = remaining.some(e => e.kind === 'war_lock');
-      const base = Math.max(0, g.attack + permanentBonuses.total(g, 'attack'));
+      const base = permanentBonuses.effective(g, 'attack');
       const modifier = active.reduce((sum, e) => sum + (e.value > 0 && locked ? 0 : weather && e.value > 0 ? Math.max(0, e.value - 1) : e.value), 0);
       change += Math.max(0, base + modifier) - base;
       const consumed = new Set([...active, ...remaining.filter(e => e.kind === 'war_lock')].map(e => e.id));
@@ -57,10 +63,17 @@ function applyAttackStatuses(state, round, weather = false) {
   }
   state.result = compareNeutralClaims(state.result.scores.map(score => ({playerId:score.playerId, mainAttack:Math.max(0, score.power + (additions.get(score.playerId) || 0))})));
 }
+function applyAlliancePenalty(room,state) {
+  state.result = compareNeutralClaims(state.result.scores.map(score => {
+    const p=state.players.find(x=>x.id===score.playerId);
+    return {playerId:score.playerId,mainAttack:Math.max(0,score.power-allianceFlow.penalty(p,room.round))};
+  }));
+}
 function waiting(room) {
   const r = room.neutralRound;
   if (!r) return null;
   if (r.choices.size < r.players.length) return r.players.find(p => !r.choices.has(p.id)).id;
+  if (r.tianyi) return r.tianyi.requests[r.tianyi.choices.length].playerId;
   if (r.cards) return r.players.find(p => r.current.mains.get(p.id) && !r.cards.has(p.id))?.id || null;
   if (r.negotiation) return r.negotiation.offer?.targetId || r.negotiation.turn;
   if (r.current?.phase === 'support') return r.players.find(p => r.current.mains.get(p.id) && !r.current.supports.has(p.id)).id;
@@ -79,6 +92,7 @@ function advance(room) {
     }
     applyExperience(r, state);
     applyAttackStatuses(state, room.round);
+    applyAlliancePenalty(room, state);
     const summary = contest.view(state, r.players[0].id);
     const result = contest.settle(state, room.neutralPool, room.turnSerial, room.round);
     r.bonusChoices.push(...result.bonusChoices);
@@ -136,12 +150,27 @@ function submit(room, player, body) {
       r.current = state; r.negotiation = null;
       applyExperience(r, state);
       applyAttackStatuses(state, room.round);
+      applyAlliancePenalty(room, state);
       const summary = contest.view(state, r.players[0].id);
       const result = contest.settle(state, room.neutralPool, room.turnSerial, room.round);
       r.bonusChoices.push(...result.bonusChoices);
       if (summary.result.scores.length) { r.results.push(summary); r.logs.push(result.winnerId ? `${r.players.find(p => p.id === result.winnerId).name}获得中立资源` : '中立资源无人获得'); }
       r.cursor++; return advance(room);
     }
+    return false;
+  }
+  if (r.tianyi) {
+    const request=r.tianyi.requests[r.tianyi.choices.length];
+    if(body.choice!=='tianyi')throw Error('请选择天意目标或放弃');
+    let target=null;
+    if(body.targetPlayerId!==null){
+      const enemy=r.players.find(p=>p.id===body.targetPlayerId);
+      if(!enemy||enemy.id===player.id||!Number.isInteger(body.targetIndex))throw Error('请选择其他争夺者的参战武将');
+      target=enemy.generals[body.targetIndex];
+      if(!target||![r.current.mains.get(enemy.id),r.current.supports.get(enemy.id)].includes(target))throw Error('请选择其他争夺者的参战武将');
+    }
+    r.tianyi.choices.push({source:request.general,target});
+    if(r.tianyi.choices.length===r.tianyi.requests.length){r.current.tianyiChoices=r.tianyi.choices;r.tianyi=null;r.cards=new Map();}
     return false;
   }
   if (r.cards) {
@@ -169,11 +198,11 @@ function submit(room, player, body) {
       if (['N27','N31'].includes(chosen.id)) {
         const g=targetPlayer.generals[target.index], present=chosen.id==='N27' ? statuses.active(g,room.round).some(x=>x.id===target.effectId&&x.removable&&x.polarity==='positive') : (g.permanentBonuses||[]).some(x=>x.id===target.effectId);
         if (present) {
-          const before=Math.max(0,g.attack+permanentBonuses.total(g,'attack'));
+          const before=permanentBonuses.effective(g,'attack');
           cardEffects[chosen.id].use({room,player:p,targetPlayerId:target.playerId,targetIndex:target.index,effectId:target.effectId});
           if (chosen.id==='N31' && [r.current.mains.get(target.playerId),r.current.supports.get(target.playerId)].includes(g)) {
             const score=r.current.result.scores.find(x=>x.playerId===target.playerId);
-            score.power+=Math.max(0,g.attack+permanentBonuses.total(g,'attack'))-before;
+            score.power+=permanentBonuses.effective(g,'attack')-before;
           }
         }
       }
@@ -193,7 +222,8 @@ function submit(room, player, body) {
       let bonus = card ? attackCards[card.id] : 0;
       if (card?.id === 'N06' && baseAttack(score.playerId) < baseAttack(r.cardTargets.get(score.playerId))) bonus += 2;
       if (weather) bonus = Math.max(0, bonus - 1);
-      return { playerId:score.playerId, mainAttack:score.power + bonus };
+      const p=r.players.find(x=>x.id===score.playerId);
+      return { playerId:score.playerId, mainAttack:Math.max(0,score.power + bonus - allianceFlow.penalty(p,room.round)) };
     });
     const clears = entries.filter(p => r.cards.get(p.id)?.id === 'N29');
     const countered = entries.some(p => r.cards.get(p.id)?.id === 'N30');
@@ -216,7 +246,7 @@ function submit(room, player, body) {
     const result = contest.settle(r.current, room.neutralPool, room.turnSerial, room.round);
     r.bonusChoices.push(...result.bonusChoices); r.results.push(summary);
     r.logs.push(result.winnerId ? `${r.players.find(p => p.id === result.winnerId).name}获得中立资源` : '中立资源无人获得');
-    r.cards = null; r.cardTargets = null; r.skillTargets = null; r.supportExperience = null; r.cursor++; return advance(room);
+    r.cards = null; r.cardTargets = null; r.skillTargets = null; r.supportExperience = null; r.supportsRevealed = false; r.cursor++; return advance(room);
   }
   if (r.current?.phase !== 'support' || body.choice !== 'support') throw Error('请选择隐藏增援');
   const support = body.index === null ? null : player.generals[body.index];
@@ -224,7 +254,10 @@ function submit(room, player, body) {
   contest.submitSupport(r.current, player.id, body.index);
   (r.supportExperience ||= new Map()).set(player.id, experience);
   if (r.current.phase !== 'complete') return false;
-  r.cards = new Map();
+  const requests=[];
+  for(const p of r.players)for(const g of [r.current.mains.get(p.id),r.current.supports.get(p.id)].filter(Boolean))if(g.id==='G05'&&g.health>0)requests.push({playerId:p.id,general:g});
+  if(requests.length){r.supportsRevealed=true;r.tianyi={requests,choices:[]};}
+  else r.cards = new Map();
   return false;
 }
 function view(room, player) {
@@ -232,7 +265,8 @@ function view(room, player) {
   if (!r) return null;
   const id = waiting(room), resource = r.current && room.neutralPool.visible.find(x => x.instanceId === r.current.resourceId);
   const contestView = r.current && r.players.includes(player) ? contest.view(r.current, player.id) : null;
-  if (r.cards && contestView) { delete contestView.supports; delete contestView.result; }
-  return { phase: r.choices.size < r.players.length ? 'main' : r.negotiation ? 'negotiation' : r.cards ? 'card' : 'support', waitingId: id, resource, results: r.results, negotiation: r.negotiation ? { ids:r.negotiation.ids, offer:r.negotiation.offer, count:r.negotiation.counts.get(player.id)||0, message:r.negotiation.message } : null, contest: contestView };
+  if ((r.cards || r.tianyi) && contestView) { if(!r.supportsRevealed)delete contestView.supports; delete contestView.result; }
+  const tianyiOptions = r.tianyi && id===player.id ? r.players.filter(p=>p.id!==player.id&&r.current.mains.get(p.id)).flatMap(p=>[r.current.mains.get(p.id),r.current.supports.get(p.id)].filter(Boolean).map(g=>({playerId:p.id,index:p.generals.indexOf(g),name:g.name}))) : undefined;
+  return { phase: r.choices.size < r.players.length ? 'main' : r.negotiation ? 'negotiation' : r.tianyi ? 'tianyi' : r.cards ? 'card' : 'support', waitingId: id, resource, results: r.results, tianyiOptions, negotiation: r.negotiation ? { ids:r.negotiation.ids, offer:r.negotiation.offer, count:r.negotiation.counts.get(player.id)||0, message:r.negotiation.message } : null, contest: contestView };
 }
 module.exports = { begin, waiting, submit, view };

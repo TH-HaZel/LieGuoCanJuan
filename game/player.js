@@ -12,5 +12,5 @@ function createPlayer(name, seat, selection) {
   if(marketPool.some(g=>g.source!=='store'))throw Error('额外武将池只能选择商店武将');
   return {id:crypto.randomUUID(),token:crypto.randomBytes(24).toString('hex'),name,seat,country:'唐朝',health:35,maxHealth:35,gold:0,defense:0,buffs:[],generals:[starter],hand:[],deck,discard:[],consumed:[],marketPool,market:[],purchased:false,turnsStarted:0};
 }
-function publicPlayer(p) {return {id:p.id,name:p.name,seat:p.seat,country:p.country,health:p.health,maxHealth:p.maxHealth,gold:p.gold,defense:p.defense,buffs:p.buffs,generals:p.generals,handCount:p.hand.length,deckCount:p.deck.length,discardCount:p.discard.length};}
+function publicPlayer(p) {return {id:p.id,name:p.name,seat:p.seat,country:p.country,health:p.health,maxHealth:p.maxHealth,gold:p.gold,defense:p.defense,buffs:p.buffs,alliancePenaltyUntil:p.alliancePenaltyUntil,generals:p.generals,handCount:p.hand.length,deckCount:p.deck.length,discardCount:p.discard.length};}
 module.exports={createPlayer,publicPlayer};

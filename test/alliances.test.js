@@ -1,0 +1,6 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),{limit,planJoin}=require('../game/alliances');
+test('同盟上限按存活人数的一半向上取整',()=>{assert.deepEqual([2,3,4,5,6].map(limit),[1,2,2,3,3]);assert.throws(()=>limit(-1));});
+test('加入空闲国家或已有同盟，不能突破上限',()=>{const alive=['a','b','c','d','e'];assert.deepEqual(planJoin([],alive,'a','b').groups,[['b','a']]);assert.deepEqual(planJoin([['a','b']],alive,'c','a').groups,[['a','b','c']]);assert.throws(()=>planJoin([['a','b','c']],alive,'d','a'));assert.throws(()=>planJoin([],['a','b'],'a','b'));});
+test('跳槽时先验证目标人数，来源和输入保持不变',()=>{const alive=['a','b','c','d','e','f'],groups=[['a','b','c'],['d','e']];const next=planJoin(groups,alive,'a','d');assert.equal(next.isSwitch,true);assert.deepEqual(next.groups,[['b','c'],['d','e','a']]);assert.deepEqual(groups,[['a','b','c'],['d','e']]);assert.throws(()=>planJoin(groups,alive,'d','a'));assert.deepEqual(groups,[['a','b','c'],['d','e']]);});
+test('同盟排除已灭亡成员，并拒绝同盟内重复跳槽',()=>{const plan=planJoin([['a','b','dead']],['a','b','c','d','e'],'c','a');assert.deepEqual(plan.groups,[['a','b','c']]);assert.throws(()=>planJoin([['a','b']],['a','b','c'],'a','b'));assert.throws(()=>planJoin([['a','b'],['b','c']],['a','b','c','d','e'],'d','a'));});

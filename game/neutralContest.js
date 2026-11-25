@@ -4,6 +4,7 @@ const { compareNeutralClaims } = require('./neutral');
 const { generalAfterDefeat } = require('./combat');
 const { randomUUID } = require('node:crypto');
 const statuses = require('./statuses');
+const generalSkills = require('./generalSkills');
 
 // This module operates on server-side player objects; clients submit only indices.
 function start(players, resourceId) {
@@ -26,7 +27,7 @@ function generalAt(player, index) {
   return general;
 }
 function power(general) {
-  return Math.max(0, general.attack + permanentBonuses.total(general, 'attack'));
+  return permanentBonuses.effective(general, 'attack');
 }
 function submitMain(state, playerId, index) {
   if (state.phase !== 'main' || state.mains.has(playerId)) throw Error('当前不能选择主将');
@@ -61,7 +62,7 @@ function view(state, playerId) {
     phase: state.phase,
     submitted: state.phase === 'main' ? state.mains.has(playerId) : state.supports.has(playerId),
     mains: revealed ? state.players.filter(p => state.mains.get(p.id)).map(p => ({ playerId: p.id, index: p.generals.indexOf(state.mains.get(p.id)), name: state.mains.get(p.id).name, power: power(state.mains.get(p.id)) })) : undefined,
-    supports: state.phase === 'complete' ? state.players.filter(p => state.supports.get(p.id)).map(p => ({ playerId: p.id, name: state.supports.get(p.id).name, power: power(state.supports.get(p.id)) })) : undefined,
+    supports: state.phase === 'complete' ? state.players.filter(p => state.supports.get(p.id)).map(p => ({ playerId: p.id, index: p.generals.indexOf(state.supports.get(p.id)), name: state.supports.get(p.id).name, power: power(state.supports.get(p.id)) })) : undefined,
     result: state.phase === 'complete' ? state.result : undefined
   };
 }
@@ -104,6 +105,14 @@ function settle(state, pool, turnSerial, round = 0) {
         g.health = outcome.health;
         if (outcome.status === 'dead') p.generals.splice(index, 1);
       }
+    }
+  }
+  for (const p of entrants) {
+    for (const g of [state.mains.get(p.id), state.supports.get(p.id)].filter(Boolean)) {
+      const blocked = state.blockedGenerals ? state.blockedGenerals.has(g) : statuses.active(g, round).some(e => e.kind === 'war_lock');
+      const outcome = winner?.id === p.id ? 'win' : winner || state.forcedDefeat?.has(p.id) ? 'loss' : 'draw';
+      // 戍卫仅对国家受伤的普通战争生效；中立资源争夺不触发。
+      if (g.id !== 'G06') generalSkills.afterBattle(p, g, blocked, outcome, {neutralSupport:g === state.supports.get(p.id)});
     }
   }
   const bonusChoices = [];

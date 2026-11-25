@@ -1,0 +1,15 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),{createPlayer}=require('../game/player'),{general}=require('../game/deck'),game=require('../game/game'),war=require('../game/war'),statuses=require('../game/statuses');
+const selection={initial:'G01',deckGenerals:['G02','G03'],marketIds:[]};
+function setup(){const a=createPlayer('甲',1,selection),b=createPlayer('乙',2,selection),room={phase:'waiting',players:[a,b]};game.startGame(room,a);a.generals[0]=general('G05');b.generals[0]=general('G08');return {room,a,b};}
+function select(room,a,b){war.startWar(room,a,{targetId:b.id,indices:[0]});assert.equal(war.viewWar(room,b).attackerIndices,undefined);war.respondWar(room,b,{choice:'fight'});war.respondWar(room,b,{choice:'general',indices:[0]});assert.equal(room.war.phase,'tianyi');assert.equal(war.viewWar(room,b).tianyiOptions,undefined);assert.deepEqual(war.viewWar(room,a).tianyiOptions.map(x=>x.name),['刘仁轨']);assert.throws(()=>war.respondWar(room,b,{choice:'target',targetIndex:0}));assert.throws(()=>war.respondWar(room,a,{choice:'target',targetIndex:10}));war.respondWar(room,a,{choice:'target',targetIndex:0});}
+function finish(room,a,b){war.respondWar(room,a,{choice:'card',instanceId:null});war.respondWar(room,b,{choice:'card',instanceId:null});return room.war.result.defensePower;}
+test('天意封锁敌方参战武将的自身技能',()=>{const {room,a,b}=setup();select(room,a,b);assert.equal(finish(room,a,b),3);});
+test('从谏如流可抵消天意一次',()=>{const {room,a,b}=setup();statuses.add(b.generals[0],{source:'T17',kind:'war_immunity',value:1,expires:3});select(room,a,b);assert.equal(finish(room,a,b),6);});
+test('裴行俭被禁军令封锁时天意不生效',()=>{const {room,a,b}=setup();statuses.add(a.generals[0],{source:'N25',kind:'war_lock',value:-1});select(room,a,b);assert.equal(finish(room,a,b),6);});
+test('双方裴行俭互相指定时天意都失效，不消耗免疫',()=>{
+ const {room,a,b}=setup();b.generals[0]=general('G05');statuses.add(a.generals[0],{source:'T17',kind:'war_immunity',value:1,expires:3});statuses.add(b.generals[0],{source:'T17',kind:'war_immunity',value:1,expires:3});war.startWar(room,a,{targetId:b.id,indices:[0]});war.respondWar(room,b,{choice:'fight'});war.respondWar(room,b,{choice:'general',indices:[0]});war.respondWar(room,a,{choice:'target',targetIndex:0});war.respondWar(room,b,{choice:'target',targetIndex:0});war.respondWar(room,a,{choice:'card',instanceId:null});war.respondWar(room,b,{choice:'card',instanceId:null});assert.ok(a.generals[0].statuses.some(e=>e.source==='T17'));assert.ok(b.generals[0].statuses.some(e=>e.source==='T17'));
+});
+test('单向封锁敌方裴行俭时，对方天意不能再封锁己方其他武将',()=>{
+ const {room,a,b}=setup();a.generals.push(general('G04'));b.generals[0]=general('G05');war.startWar(room,a,{targetId:b.id,indices:[0,1]});war.respondWar(room,b,{choice:'fight'});war.respondWar(room,b,{choice:'general',indices:[0]});war.respondWar(room,a,{choice:'target',targetIndex:0});war.respondWar(room,b,{choice:'target',targetIndex:1});war.respondWar(room,a,{choice:'card',instanceId:null});war.respondWar(room,b,{choice:'card',instanceId:null});assert.equal(require('../game/permanentBonuses').total(a.generals[1],'attack'),1);
+});
