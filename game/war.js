@@ -1,14 +1,17 @@
 'use strict';
 const {seatDistance,calculateBattle,pursuitDamage,generalAfterDefeat}=require('./combat');
 const {generals}=require('./deck');
+const statuses=require('./statuses');
+const permanentBonuses=require('./permanentBonuses');
 function byId(room,id){return room.players.find(p=>p.id===id);}
 function eligible(g){return g && !(g.remaining>0);}
 function selected(player,indices){
   if(!Array.isArray(indices)||indices.length<1||indices.length>5||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||!eligible(player.generals[i])))throw Error('请选择一至五名不同的可出战武将');
   return indices.map(i=>player.generals[i]);
 }
-function teamPower(generals,attribute){return Math.max(0,generals.reduce((sum,g)=>sum+g[attribute],0)-generals.length*(generals.length-1)/2);}
+function teamPower(generals,attribute){return Math.max(0,generals.reduce((sum,g)=>sum+g[attribute]+permanentBonuses.total(g,attribute),0)-generals.length*(generals.length-1)/2);}
 function startWar(room,player,body){
+  if(room.pendingChoice)throw Error('请先完成弃牌');
   if(room.phase!=='playing'||room.players[room.turnIndex].id!==player.id)throw Error('只能在自己的回合宣战');
   if(room.war)throw Error('战争尚未结束');if(room.mainActionUsed)throw Error('本回合已使用主要行动');
   const target=byId(room,body.targetId);if(!target||target===player||target.health<=0)throw Error('目标无效');
@@ -39,7 +42,7 @@ function respondWar(room,player,body){
     const id=body.instanceId;
     if(id!==null&&typeof id!=='string')throw Error('无效的卡牌');
     const card=id===null?null:player.hand.find(c=>c.instanceId===id);
-    const allowed=player.id===a.id?['T05','T08','N01','N02','N05','N06','N07','N30']:['N08','N09','N10','N11','N12','N14','N30'];
+    const allowed=player.id===a.id?['T05','T08','N01','N02','N05','N06','N07','N13','N29','N30']:['N08','N09','N10','N11','N12','N13','N14','N29','N30'];
     if(id!==null&&(!card||!allowed.includes(card.id)||player.gold<card.cost))throw Error('卡牌不可使用或黄金不足');
     w.selections[player.id]=id;
     if(player.id===a.id){w.waitingId=d.id;room.event='进攻方已确认暗盖，等待防守方。';return;}
@@ -50,26 +53,36 @@ function respondWar(room,player,body){
     if(played.length)room.lastPlayed=played;
     const revealed=`暗盖揭示：${a.name} ${ac?ac.name:'不出牌'}；${d.name} ${dc?dc.name:'不出牌'}。`;
     const attackGenerals=selected(a,w.attackerIndices),defenseGenerals=w.hardDefense?[]:selected(d,w.defenderIndices);
+    for(const g of [...attackGenerals,...defenseGenerals]){const active=statuses.active(g,room.round),shield=active.find(e=>e.kind==='war_immunity'),debuff=active.find(e=>['N04','N23','N25'].includes(e.source)&&e.polarity==='negative');if(shield&&debuff)g.statuses=g.statuses.filter(e=>e.id!==shield.id&&e.id!==debuff.id);}
     for(const g of [...attackGenerals,...defenseGenerals]){g.remaining=g.cooldown;g.cooldownStart=room.turnSerial;}
-    if(dc?.id==='N29'&&ac?.id!=='N30'){
-      for(const g of attackGenerals)defeat(a,g);
-      room.event=revealed+'鸣金收兵生效，进攻武将战败，战争结束。';room.war=null;return;
+    if((ac?.id==='N29'&&dc?.id!=='N29'&&dc?.id!=='N30')||(dc?.id==='N29'&&ac?.id!=='N29'&&ac?.id!=='N30')){
+      const victim=ac?.id==='N29'?d:a,team=ac?.id==='N29'?defenseGenerals:attackGenerals;
+      for(const g of team)defeat(victim,g);
+      const winner=ac?.id==='N29'?a:d;winner.gold+=(winner.warIncome||0)*5;a.warIncome=0;d.warIncome=0;
+      const choices=[];for(const [owner,units] of [[a,attackGenerals],[d,defenseGenerals]])for(const g of units){const effects=statuses.active(g,room.round),healing=effects.filter(e=>e.kind==='heal_on_win').reduce((sum,e)=>sum+e.value,0),cooldown=effects.filter(e=>e.kind==='cooldown_after_battle').reduce((sum,e)=>sum+e.value,0);if(healing&&owner===winner&&g.health>0)g.health=Math.min(g.maxHealth,g.health+healing);if(cooldown)g.remaining=Math.max(0,g.remaining-cooldown);for(const effect of effects)if(effect.kind==='permanent_after_war'&&owner.generals.includes(g))choices.push({type:'permanent-bonus',playerId:owner.id,general:g});g.statuses=effects.filter(e=>!['attack','defense','heal_on_win','cooldown_after_battle','war_lock','permanent_after_war'].includes(e.kind));}if(choices.length){room.pendingBonuses=choices;room.pendingChoice=choices[0];}
+      room.event=revealed+'鸣金收兵生效，对方参战武将战败，战争结束。';room.war=null;return;
     }
     const distance=seatDistance(room.players.filter(p=>p.health>0).map(p=>p.id),a.id,d.id);
     const penalty=ac?.id==='N07'?0:Math.max(0,(ac?.id==='T05'?0:distance-1)-(ac?.id==='N02'?1:0))+(dc?.id==='N11'?2:0);
     const baseAttack=gs=>gs.reduce((sum,g)=>sum+(generals.find(base=>base.id===g.id)?.attack??0),0);
     const n06Bonus=ac?.id==='N06'?1+(defenseGenerals.length&&baseAttack(attackGenerals)<baseAttack(defenseGenerals)?2:0):0;
-    const attack=n06Bonus+teamPower(attackGenerals,'attack')+(ac?.id==='T08'?1:ac?.id==='N02'?1:ac?.id==='N05'?2:ac?.id==='N07'?3:ac?.id==='N01'?2:0)-(dc?.id==='N12'?2:0);
-    const defense=(w.hardDefense?d.defense:teamPower(defenseGenerals,'defense'))+(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0);
+    const attackCardBonus=n06Bonus+(ac?.id==='T08'?1:ac?.id==='N02'?1:ac?.id==='N05'?2:ac?.id==='N07'?3:ac?.id==='N01'?2:0);
+    const attackStats=attackGenerals.map(g=>({...g,attack:g.attack+statuses.active(g,room.round).filter(e=>e.kind==='attack').reduce((sum,e)=>sum+(e.value>0&&statuses.active(g,room.round).some(s=>s.kind==='war_lock')?0:e.value>0&&dc?.id==='N13'?Math.max(0,e.value-1):e.value),0)}));
+    const attack=teamPower(attackStats,'attack')+Math.max(0,attackCardBonus-(dc?.id==='N13'?1:0))-(dc?.id==='N12'?2:0);
+    const defenseStats=defenseGenerals.map(g=>({...g,defense:g.defense+statuses.active(g,room.round).filter(e=>e.kind==='defense').reduce((sum,e)=>sum+e.value,0)}));
+    const defense=(w.hardDefense?d.health+d.defense:teamPower(defenseStats,'defense'))+(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0);
     const result=calculateBattle({attack,defense,distance:penalty+1,hardDefense:w.hardDefense});
     w.result=result;
+    for(const [team,side] of [[attackGenerals,'attacker'],[defenseGenerals,'defender']])for(const g of team){const effects=statuses.active(g,room.round);const healing=effects.filter(e=>e.kind==='heal_on_win').reduce((sum,e)=>sum+e.value,0);if(healing&&result.winner===side&&g.health>0)g.health=Math.min(g.maxHealth,g.health+healing);const cooldown=effects.filter(e=>e.kind==='cooldown_after_battle').reduce((sum,e)=>sum+e.value,0);if(cooldown)g.remaining=Math.max(0,g.remaining-cooldown);g.statuses=effects.filter(e=>!['attack','defense','heal_on_win','cooldown_after_battle','war_lock'].includes(e.kind));}
+    for(const [owner,side] of [[a,'attacker'],[d,'defender']]){if(result.winner===side)owner.gold+=(owner.warIncome||0)*5;owner.warIncome=0;}
     if(ac?.id==='N05'&&result.winner==='attacker')a.gold+=2;
     if(dc?.id==='N09'&&result.winner==='defender')d.gold+=2;
     if(result.attackerGeneralDefeated)for(const g of attackGenerals)defeat(a,g);
     if(ac?.id==='N01'&&result.winner==='defender')for(const g of attackGenerals)if(a.generals.includes(g))g.health=Math.max(0,g.health-1);
     if(result.defenderGeneralDefeated)for(const g of defenseGenerals)defeat(d,g);
     d.health-=result.defenderDamage;room.event=revealed+`战争结算：进攻 ${result.attackPower}，防守 ${result.defensePower}；${d.name}损失 ${result.defenderDamage} 生命。`;
-    if(d.health<=0){finishElimination(room,d,a);room.war=null;return;}
+    const eliminated=d.health<=0;if(eliminated){finishElimination(room,d,a);room.war=null;}
+    const choices=[];for(const [owner,team] of [[a,attackGenerals],[d,defenseGenerals]])for(const g of team){const effects=(g.statuses||[]).filter(e=>e.kind==='permanent_after_war');g.statuses=(g.statuses||[]).filter(e=>e.kind!=='permanent_after_war');if(room.phase==='playing'&&owner.health>0&&owner.generals.includes(g))for(const effect of effects)choices.push({type:'permanent-bonus',playerId:owner.id,general:g});}if(choices.length){room.pendingBonuses=choices;room.pendingChoice=choices[0];}if(eliminated)return;
     if(result.canPursueOrClaim){w.phase='aftermath';w.waitingId=d.id;}else room.war=null;return;
   }
   if(w.phase==='aftermath'){

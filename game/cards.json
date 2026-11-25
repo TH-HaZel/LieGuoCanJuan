@@ -85,9 +85,9 @@
         "name": "四海归心",
         "country": "唐",
         "variety": "技能",
-        "cost": 3,
+        "cost": 1,
         "rarity": "medium",
-        "description": " 自己获得 2 金。\n- 若当前存在同盟国家，同盟国家获得 2 金。"
+        "description": "选择一名存活玩家，该玩家获得 2 金。可以选择自己。"
     },
     {
         "id": "T11",
@@ -156,7 +156,7 @@
         "id": "T17",
         "name": "从谏如流",
         "country": "唐",
-        "variety": "战争",
+        "variety": "技能",
         "cost": 5,
         "rarity": "medium",
         "description": "选择一名己方武将。\n\n其下一次战争免疫一次敌方技能造成的技能封锁或属性降低效果。\n\n效果触发后失效，或在两轮后失效。"
@@ -444,7 +444,7 @@
         "id": "N31",
         "name": "削籍夺功",
         "country": "全局",
-        "variety": "战争",
+        "variety": "技能",
         "cost": 9,
         "rarity": "high",
         "description": "选择一名敌方武将。\n\n移除其一项永久属性增益：\n\n- 攻击力永久 +1。\n- 或防御力永久 +1。\n\n不能降低武将原始基础属性。\n\n可以针对李勣通过成长获得的永久属性。"
@@ -453,7 +453,7 @@
         "id": "N32",
         "name": "全军整肃",
         "country": "全局",
-        "variety": "战争",
+        "variety": "技能",
         "cost": 8,
         "rarity": "high",
         "description": "选择一名敌方武将。\n\n移除其所有当前生效的临时正面增益。\n\n不能移除永久增益、基础属性或武将自身技能。"
