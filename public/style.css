@@ -396,3 +396,4 @@ body #game{padding-bottom:175px}
 #game .neutral-resource:disabled{opacity:.45;cursor:not-allowed}
 .card-detail-overlay{z-index:50}
 #game:has(>.middle.neutral-active)>.event-toast{z-index:45;top:62px}
+#waitingRoom{max-width:620px;margin:5vh auto;padding:28px;background:#fff;border:1px solid #dbe7dc;border-radius:14px;box-shadow:0 8px 28px #52738712}#waitingRoom ul{list-style:none;padding:0;display:grid;gap:10px}#waitingRoom li{padding:12px;background:#f5f9f4;border:1px solid #dbe7dc;border-radius:8px}#waitingRoom button{width:100%;margin-top:12px}#waitingRoom button:disabled{opacity:.6;cursor:default}

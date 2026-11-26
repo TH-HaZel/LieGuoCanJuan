@@ -121,7 +121,7 @@ function resolveConcealed(room,w,a,d){
     const attack=teamPower(attackStats,'attack')+Math.max(0,attackCardBonus-(dc?.id==='N13'&&enabled(d,dc,'attackReduction')?1:0))-(dc?.id==='N12'&&enabled(d,dc,'attackPenalty')?2:0);
     const defenseStats=defenseGenerals.map((g,i)=>({...g,defense:g.defense+(w.defenderExperience[w.defenderIndices[i]]||0)+statuses.active(g,room.round).filter(e=>e.kind==='defense').reduce((sum,e)=>sum+e.value,0)}));
     const defenseMultiplier=generalSkills.hasDefenseDoubler([...defenseGenerals,...[defenseSupport].filter(Boolean)],blockedGenerals)?2:1;
-    const defense=(w.hardDefense?d.health+d.defense:teamPower(defenseStats,'defense',defenseMultiplier))+(enabled(d,dc,'defense')?(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0):0);
+    const defense=(w.hardDefense?d.defense:teamPower(defenseStats,'defense',defenseMultiplier))+(enabled(d,dc,'defense')?(dc?.id==='N08'?3:dc?.id==='N09'?2:dc?.id==='N10'?5:dc?.id==='N14'?(d.health<=15?3:1):0):0);
     const attackerSupportPower=attackSupport?support.power(attackSupport,'attack',room.round,{weather:dc?.id==='N13'&&enabled(d,dc,'attackReduction')}):0;
     const defenderSupportPower=defenseSupport?support.power(defenseSupport,'defense',room.round,{multiplier:defenseMultiplier}):0;
     const attackerAlly=attackSupport?byId(room,w.supports[a.id].playerId):null,defenderAlly=defenseSupport?byId(room,w.supports[d.id].playerId):null;

@@ -39,11 +39,11 @@ test('服务器快照不泄露尚未揭示的增援，也不泄露牌堆顺序',
  assert.equal(done.lastNeutralResults[0].supports[0].name,'秘密援军');
 });
 
-test('国家硬抗使用当前生命加防御',()=>{
+test('国家硬抗只使用独立防御，不计入国家生命',()=>{
  const {createPlayer}=require('../game/player'),game=require('../game/game'),war=require('../game/war');
  const a=createPlayer('甲',1,selection),b=createPlayer('乙',2,selection),room={phase:'waiting',players:[a,b]};
  game.startGame(room,a);b.health=10;b.defense=2;war.startWar(room,a,{targetId:b.id,indices:[0]});war.respondWar(room,b,{choice:'fight'});war.respondWar(room,b,{choice:'hard'});war.respondWar(room,a,{choice:'card',instanceId:null});war.respondWar(room,b,{choice:'card',instanceId:null});
- assert.equal(b.health,10);assert.equal(a.generals[0].health,2);assert.equal(room.war,null);
+ assert.equal(b.health,9);assert.equal(a.generals[0].health,3);assert.equal(room.war,null);
 });
 test('中立争夺后排队处理军功簿与战后整顿，再进入下一轮',()=>{
  const {room,player:a}=rooms.createRoom('甲',selection),b=rooms.joinRoom(room.code,'乙',selection);
@@ -208,4 +208,14 @@ test('六人分别争夺三份资源，隐藏选择不泄漏并按顺序结算',
  assert.equal(room.round,2);assert.equal(room.neutralRound,null);assert.equal(room.lastNeutralResults.length,3);
  for(let i=0;i<6;i+=2){assert.equal(room.lastNeutralResults[i/2].result.winnerId,ps[i].id);assert.equal(ps[i+1].generals[0].health,2);}
  for(const id of ['r1','r2','r3'])assert.ok(!room.neutralPool.visible.some(r=>r.instanceId===id));
+});
+
+
+test('初始国家防御为零，硬抗按进攻战力扣除生命',()=>{
+ const {createPlayer}=require('../game/player'),game=require('../game/game'),war=require('../game/war');
+ const a=createPlayer('甲',1,selection),b=createPlayer('乙',2,selection),room={phase:'waiting',players:[a,b]};
+ game.startGame(room,a);assert.equal(b.defense,0);assert.equal(b.health,35);
+ war.startWar(room,a,{targetId:b.id,indices:[0]});war.respondWar(room,b,{choice:'fight'});war.respondWar(room,b,{choice:'hard'});
+ war.respondWar(room,a,{choice:'card',instanceId:null});war.respondWar(room,b,{choice:'card',instanceId:null});
+ assert.equal(b.health,32);assert.equal(b.generals[0].health,3);assert.equal(a.generals[0].health,3);assert.equal(room.war,null);
 });

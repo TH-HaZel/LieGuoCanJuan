@@ -21,13 +21,14 @@ const server = http.createServer(async (req,res) => {
       const {room,player}=rooms.authenticate(url.searchParams.get('room')||'',url.searchParams.get('token')||'');
       res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache','Connection':'keep-alive'}); rooms.subscribe(room,player,res); return;
     }
-    if (req.method==='POST' && ['/api/create','/api/join','/api/start','/api/end-turn','/api/deploy','/api/buy','/api/withdraw','/api/experience-cooldown','/api/trade-propose','/api/trade-respond','/api/alliance-gift','/api/alliance-leave','/api/alliance-propose','/api/alliance-vote','/api/play-card','/api/discard-choice','/api/neutral-action','/api/bonus-choice','/api/war-start','/api/war-respond'].includes(url.pathname)) {
+    if (req.method==='POST' && ['/api/leave','/api/create','/api/join','/api/start','/api/end-turn','/api/deploy','/api/buy','/api/withdraw','/api/experience-cooldown','/api/trade-propose','/api/trade-respond','/api/alliance-gift','/api/alliance-leave','/api/alliance-propose','/api/alliance-vote','/api/play-card','/api/discard-choice','/api/neutral-action','/api/bonus-choice','/api/war-start','/api/war-respond'].includes(url.pathname)) {
       let data=''; for await(const part of req){data+=part;if(data.length>4096) throw new Error('请求过大');}
       const body=JSON.parse(data || '{}');
+      if(url.pathname==='/api/leave'){json(res,200,rooms.leaveRoom(body.code||'',body.token||''));return;}
       if (url.pathname === '/api/start' || url.pathname === '/api/end-turn' || url.pathname === '/api/deploy' || url.pathname === '/api/buy' || url.pathname === '/api/withdraw' || url.pathname === '/api/experience-cooldown' || url.pathname === '/api/trade-propose' || url.pathname === '/api/trade-respond' || url.pathname === '/api/alliance-gift' || url.pathname === '/api/alliance-leave' || url.pathname === '/api/alliance-propose' || url.pathname === '/api/alliance-vote' || url.pathname === '/api/play-card' || url.pathname === '/api/discard-choice' || url.pathname === '/api/neutral-action' || url.pathname === '/api/bonus-choice' || url.pathname === '/api/war-start' || url.pathname === '/api/war-respond') {json(res,200,rooms.action(body.code || '',body.token || '',url.pathname.slice(5),body));return;}
       const name=nameOf(body.name);
-      if(url.pathname==='/api/create'){const {room,player}=rooms.createRoom(name,body.selection);json(res,200,{code:room.code,token:player.token});}
-      else {const code=String(body.code||'').trim().toUpperCase();const player=rooms.joinRoom(code,name,body.selection);json(res,200,{code,token:player.token});}return;
+      if(url.pathname==='/api/create'){const {room,player}=rooms.createRoom(name,body.selection,{randomizeOrder:true});json(res,200,{code:room.code,token:player.token,playerId:player.id});}
+      else {const code=String(body.code||'').trim().toUpperCase();const player=rooms.joinRoom(code,name,body.selection);json(res,200,{code,token:player.token,playerId:player.id});}return;
     }
     json(res,404,{error:'未找到'});
   } catch(e) {if(!res.headersSent) json(res,400,{error:e.message || '请求失败'}); else res.end();}

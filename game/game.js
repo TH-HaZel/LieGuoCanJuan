@@ -14,8 +14,10 @@ function startRound(room){for(const p of room.players){if(p.health<=0)continue;f
 function beginTurn(room,player){player.turnsStarted++;player.gold+=player.pendingPolicy||0;player.pendingPolicy=0;player.purchased=false;const penalties=player.incomePenalties||[];player.gold+=Math.max(0,Math.min(room.round,7)-penalties.filter(p=>p.round===room.round).reduce((sum,p)=>sum+p.amount,0));player.incomePenalties=penalties.filter(p=>p.round>room.round);if(player.country==='唐朝')player.gold+=1;const result=drawCard(player);for(let i=0;i<(player.goldenAge||0)+(player.goldenAgeDefense||0);i++)player.health=Math.min(player.maxHealth,player.health+2);for(let i=0;i<(player.goldenAge||0)+(player.goldenAgeDraw||0);i++)drawCard(player);for(let i=0;i<(player.taxEffects||0)+(player.taxGoldEffects||0);i++)player.gold++;for(let i=0;i<(player.taxEffects||0)+(player.taxDrawEffects||0);i++)drawCard(player);return result;}
 function startGame(room, player) {
   if(room.phase!=='waiting')throw new Error('游戏已经开始');
-  if(room.players[0].id!==player.id)throw new Error('只有房主可以开始游戏');
+  if((room.hostId||room.players[0].id)!==player.id)throw new Error('只有房主可以开始游戏');
   if(room.players.length<2)throw new Error('至少需要 2 名玩家');
+  room.hostId=room.hostId||room.players[0].id;
+  if(room.randomizeOrder){shuffle(room.players);room.players.forEach((p,index)=>{p.seat=index+1;});}
   room.alliances=[];room.pendingAlliance=null;room.phase='playing';room.turnIndex=0;room.round=1;room.turnSerial=1;room.mainActionUsed=false;room.neutralPool=neutral.createNeutralPool();for(let i=0;i<neutral.config.revealPerRound;i++)neutral.revealNeutral(room.neutralPool);refreshMarkets(room);
   for(const p of room.players)for(let i=0;i<5;i++)drawCard(p);
   const result=beginTurn(room,room.players[0]);
