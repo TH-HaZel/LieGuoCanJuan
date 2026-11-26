@@ -379,3 +379,20 @@ body #game{padding-bottom:175px}
 /* 事件区在操作区上方滚动，二者不占用同一片区域。 */
 #game>.lower>div:nth-child(2){max-height:calc(55vh - 110px);max-height:calc(55dvh - 110px);overflow-y:auto}
 @media(max-width:700px){#game>.action-dock{right:8px;bottom:12px;width:160px;padding:8px}#game>.action-dock button{max-width:100%;font-size:12px;padding:6px 8px}#game>.action-dock input{max-width:100%}#game>.lower>div:nth-child(2){max-height:calc(55vh - 95px);max-height:calc(55dvh - 95px)}}
+
+/* 中立争夺单独提供足够宽的操作空间，避开棋盘上的固定区域。 */
+#game>.middle.neutral-active{position:fixed;z-index:30;left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);width:min(820px,calc(100vw - 36px));height:auto;min-height:0;max-height:calc(100dvh - 100px);overflow:auto;display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:flex-start;align-items:center;gap:12px;padding:24px;border:1px solid #b7cdbb;border-radius:14px;background:#f8faf7;box-shadow:0 12px 55px #1d392c55;color:#405b49;pointer-events:auto}
+#game>.middle.neutral-active>strong,#game>.middle.neutral-active>span,#game>.middle.neutral-active>small{flex-basis:100%;overflow-wrap:anywhere}
+#game>.middle.neutral-active button{min-height:42px;white-space:normal;pointer-events:auto}
+#game>.middle.neutral-active select{max-width:100%;min-height:42px;padding:8px;font-size:15px;flex:1 1 190px;min-width:0}
+#game>.middle.neutral-active input{min-height:42px;max-width:100%}
+.neutral-resource-cards{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;width:100%}
+#game .neutral-resource{display:flex;flex-direction:column;gap:10px;width:170px;min-height:150px;padding:16px;text-align:left;background:#fffef8;border:1px solid #b8cbb8;border-top:4px solid #7a9c80;border-radius:9px;box-shadow:0 3px 9px #334d3915;color:#405449}
+#game .neutral-resource strong{font-size:16px}#game .neutral-resource span{font-size:12px;line-height:1.5;max-height:100px;overflow:auto;white-space:pre-line}
+#game .neutral-resource[aria-pressed=true]{border-color:#bc8d38;box-shadow:0 0 0 3px #eacb83;background:#fff9e5}
+#game .neutral-resource-select{display:none}
+@media(max-width:600px){#game>.middle.neutral-active{padding:16px;gap:10px;max-height:calc(100dvh - 40px)}#game>.middle.neutral-active>button{flex:1 1 130px}#game .neutral-resource{width:calc(50% - 8px);min-width:120px}}
+#game .neutral-card-select{display:none}
+#game .neutral-resource:disabled{opacity:.45;cursor:not-allowed}
+.card-detail-overlay{z-index:50}
+#game:has(>.middle.neutral-active)>.event-toast{z-index:45;top:62px}
