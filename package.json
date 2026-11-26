@@ -1,6 +1,6 @@
 {
   "name": "lieguo-canju",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "列国残卷房间与玩家交互原型",
   "scripts": {
