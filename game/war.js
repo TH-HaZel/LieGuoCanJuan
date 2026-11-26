@@ -108,7 +108,7 @@ function resolveConcealed(room,w,a,d){
       a.militaryBetrayalPending=!!w.betrayal;d.militaryBetrayalPending=false;for(const x of Object.values(w.supports||{}))byId(room,x.playerId).militaryBetrayalPending=false;
       const victim=clear.ownerId===a.id?d:a,team=clear.ownerId===a.id?defenseGenerals:attackGenerals;
       for(const g of team)defeat(victim,g);
-      const winner=clear.ownerId===a.id?a:d;winner.gold+=(winner.warIncome||0)*5;a.warIncome=0;d.warIncome=0;
+      const winner=clear.ownerId===a.id?a:d;winner.gold+=(winner.warIncome||0)*2;
       const choices=[];for(const [owner,units] of [[a,attackGenerals],[d,defenseGenerals],...[attackSupport?[byId(room,w.supports[a.id].playerId),[attackSupport]]:null,defenseSupport?[byId(room,w.supports[d.id].playerId),[defenseSupport]]:null].filter(Boolean)])for(const g of units){const effects=statuses.active(g,room.round),healing=effects.filter(e=>e.kind==='heal_on_win').reduce((sum,e)=>sum+e.value,0),cooldown=effects.filter(e=>e.kind==='cooldown_after_battle').reduce((sum,e)=>sum+e.value,0);if(healing&&(owner===winner||owner.id===w.supports[winner.id]?.playerId)&&g.health>0)g.health=Math.min(g.maxHealth,g.health+healing);if(cooldown)g.remaining=Math.max(0,g.remaining-cooldown);for(const effect of effects)if(effect.kind==='permanent_after_war'&&owner.generals.includes(g))choices.push({type:'permanent-bonus',playerId:owner.id,general:g});g.statuses=effects.filter(e=>!['attack','defense','heal_on_win','cooldown_after_battle','war_lock','permanent_after_war'].includes(e.kind));}if(choices.length){room.pendingBonuses=choices;room.pendingChoice=choices[0];}
       room.event=revealed+'鸣金收兵生效，对方参战武将战败，战争结束。';room.war=null;return;
     }
@@ -136,7 +136,7 @@ function resolveConcealed(room,w,a,d){
     result.defenderDamage=generalSkills.boostDamage(result.defenderDamage,attackerDamageBoost);
     w.result=result;
     for(const [team,side] of [[attackGenerals,'attacker'],[defenseGenerals,'defender']])for(const g of team){const effects=statuses.active(g,room.round);const healing=effects.filter(e=>e.kind==='heal_on_win').reduce((sum,e)=>sum+e.value,0);if(healing&&result.winner===side&&g.health>0)g.health=Math.min(g.maxHealth,g.health+healing);const cooldown=effects.filter(e=>e.kind==='cooldown_after_battle').reduce((sum,e)=>sum+e.value,0);if(cooldown)g.remaining=Math.max(0,g.remaining-cooldown);g.statuses=effects.filter(e=>!['attack','defense','heal_on_win','cooldown_after_battle','war_lock'].includes(e.kind));}
-    for(const [owner,side] of [[a,'attacker'],[d,'defender']]){if(result.winner===side)owner.gold+=(owner.warIncome||0)*5;owner.warIncome=0;}
+    for(const [owner,side] of [[a,'attacker'],[d,'defender']]){if(result.winner===side)owner.gold+=(owner.warIncome||0)*2;}
     if(ac?.id==='N05'&&enabled(a,ac,'winGold')&&result.winner==='attacker')a.gold+=2;
     if(dc?.id==='N09'&&enabled(d,dc,'winGold')&&result.winner==='defender')d.gold+=2;
     if(result.attackerGeneralDefeated)for(const g of attackGenerals)defeat(a,g);

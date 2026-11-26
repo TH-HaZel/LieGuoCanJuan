@@ -219,3 +219,19 @@ test('初始国家防御为零，硬抗按进攻战力扣除生命',()=>{
  war.respondWar(room,a,{choice:'card',instanceId:null});war.respondWar(room,b,{choice:'card',instanceId:null});
  assert.equal(b.health,32);assert.equal(b.generals[0].health,3);assert.equal(a.generals[0].health,3);assert.equal(room.war,null);
 });
+
+
+test('以战养战中立争夺获胜获得二金，失败不获金且能力保留',()=>{
+ const {room,player:a}=rooms.createRoom('甲',selection),b=rooms.joinRoom(room.code,'乙',selection);
+ act(room,a,'start');room.neutralPool.visible=[{instanceId:'income-resource',type:'gold',amount:3}];
+ for(const p of [a,b]){p.gold=20;p.hand.push({...require('../game/deck').cards.find(c=>c.id==='T12'),instanceId:'income-'+p.id});}
+ act(room,a,'play-card',{instanceId:'income-'+a.id});act(room,a,'end-turn');
+ act(room,b,'play-card',{instanceId:'income-'+b.id});act(room,b,'end-turn');
+ a.generals[0].attack=1;b.generals[0].attack=5;
+ act(room,a,'neutral-action',{choice:'main',resourceId:'income-resource',index:0});act(room,b,'neutral-action',{choice:'main',resourceId:'income-resource',index:0});
+ act(room,a,'neutral-action',{choice:'support',index:null});
+ const beforeA=a.gold,beforeB=b.gold;
+ act(room,b,'neutral-action',{choice:'support',index:null});
+ assert.equal(b.gold,beforeB+3+2);assert.equal(a.gold,beforeA+3);
+ assert.equal(a.warIncome,1);assert.equal(b.warIncome,1);
+});

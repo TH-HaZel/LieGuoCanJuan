@@ -102,10 +102,10 @@
         "id": "T12",
         "name": "以战养战",
         "country": "唐",
-        "variety": "技能",
-        "cost": 3,
+        "variety": "能力",
+        "cost": 5,
         "rarity": "legend",
-        "description": "下一次普通战争胜利时，获得 5 金。\n\n无论胜负，本效果均在下一次普通战争结束后失效。"
+        "description": "持续生效：每次普通战争或中立资源争夺获胜时，获得 2 金。"
     },
     {
         "id": "T13",

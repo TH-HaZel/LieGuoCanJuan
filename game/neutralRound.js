@@ -109,6 +109,8 @@ function advance(room) {
 function finishCards(room,summary){
   const r=room.neutralRound;
     const result = contest.settle(r.current, room.neutralPool, room.turnSerial, room.round);
+    const winner=r.players.find(p=>p.id===result.winnerId);
+    if(winner)winner.gold+=(winner.warIncome||0)*2;
     for(const p of r.current.players)if(r.current.mains.get(p.id))p.militaryBetrayalPending=false;
     r.bonusChoices.push(...result.bonusChoices); r.results.push(summary);
     r.logs.push(result.winnerId ? `${r.players.find(p => p.id === result.winnerId).name}获得中立资源` : '中立资源无人获得');
