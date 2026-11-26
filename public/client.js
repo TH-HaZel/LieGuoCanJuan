@@ -46,6 +46,7 @@ let selectedGenerals=new Set(),selectedExperience=new Map(),selectionContext='',
 function warExperienceSelection(){return Object.fromEntries([...selectedGenerals].map(index=>[index,selectedExperience.get(index)||0]));}
 let selectedCardId=null,selectedCardTarget=null;
 const cardActions=document.createElement('div');cardActions.className='card-actions';$('game').append(cardActions);
+const actionDock=document.createElement('div');actionDock.className='action-dock';actionDock.setAttribute('aria-label','回合操作');const turnActions=$('start').parentElement;actionDock.append(cardActions,warPanel,turnActions);$('game').append(actionDock);
 function renderWar(state){
   warPanel.replaceChildren();const me=state.self,w=state.war;
   const pending=state.alliance?.pending, trade=state.trade;
