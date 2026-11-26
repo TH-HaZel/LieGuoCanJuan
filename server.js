@@ -10,6 +10,7 @@ function nameOf(input) {const name=String(input || '').trim(); if (!name || name
 const server = http.createServer(async (req,res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
+    if (req.method === 'GET' && url.pathname === '/api/rooms') {json(res,200,rooms.listRooms());return;}
     if (req.method === 'GET' && url.pathname === '/api/rules') {const rules=await fs.promises.readFile(path.join(__dirname,'README.md'),'utf8');res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});res.end(rules);return;}
     if (req.method === 'GET' && url.pathname === '/api/deck-options') {const deck=require('./game/deck');json(res,200,{cards:deck.neutralOptions(),defaults:deck.defaultNeutral,categories:deck.categories});return;}
     if (req.method === 'GET' && url.pathname === '/api/generals') {json(res,200,require('./game/deck').generals.map(({id,name,source})=>({id,name,source})));return;}

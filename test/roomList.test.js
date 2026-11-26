@@ -1,0 +1,4 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),rooms=require('../server/rooms');
+const selection={initial:'G01',deckGenerals:['G02','G03'],marketIds:[]};
+test('房间列表仅展示有连接、未开始且未满的房间，不公开身份令牌',()=>{const {room,player}=rooms.createRoom('房主',selection);assert.equal(rooms.listRooms().some(r=>r.code===room.code),false);let close;rooms.subscribe(room,player,{write(){},on(event,fn){if(event==='close')close=fn;}});const item=rooms.listRooms().find(r=>r.code===room.code);assert.deepEqual(item,{code:room.code,hostName:'房主',players:1,capacity:6});assert.equal(JSON.stringify(item).includes(player.token),false);room.phase='playing';assert.equal(rooms.listRooms().some(r=>r.code===room.code),false);room.phase='waiting';close();assert.equal(rooms.listRooms().some(r=>r.code===room.code),false);});
