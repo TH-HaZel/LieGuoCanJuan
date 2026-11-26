@@ -1,18 +1,21 @@
 'use strict';
 const { randomInt, randomUUID } = require('node:crypto');
-const { cards, shuffle } = require('./deck');
+const { cards, shuffle, general } = require('./deck');
+const config=require('./neutralConfig.json');
 
 // 资源池与玩家牌堆分开；抽牌顺序仅保存在服务器。
 function createNeutralPool() {
   const publicCards = cards.filter(card => card.country === '全局');
-  if (publicCards.length < 20) throw Error('公共卡牌不足 20 张');
-  const gold = Array.from({ length: 20 }, () => ({
-    instanceId: randomUUID(), type: 'gold', amount: randomInt(1, 6)
+  for(const [key,value] of Object.entries({goldCount:config.goldCount,publicCardCount:config.publicCardCount,revealPerRound:config.revealPerRound,goldMin:config.goldMin,goldMax:config.goldMax}))if(!Number.isSafeInteger(value)||value<0)throw Error(`中立资源配置无效：${key}`);
+  if(config.revealPerRound<1||config.goldMax<config.goldMin||publicCards.length<config.publicCardCount||!Array.isArray(config.initialGeneralIds))throw Error('中立资源配置无效');
+  const gold = Array.from({ length: config.goldCount }, () => ({
+    instanceId: randomUUID(), type: 'gold', amount: randomInt(config.goldMin, config.goldMax+1)
   }));
-  const skills = shuffle([...publicCards]).slice(0, 20).map(card => ({
+  const skills = shuffle([...publicCards]).slice(0, config.publicCardCount).map(card => ({
     instanceId: randomUUID(), type: 'card', card: structuredClone(card)
   }));
-  return { deck: shuffle([...gold, ...skills]), visible: [] };
+  const generals=config.initialGeneralIds.map(id=>({instanceId:randomUUID(),type:'card',card:general(id)}));
+  return { deck: shuffle([...gold, ...skills,...generals]), visible: [] };
 }
 
 // 每大轮公开一张；场上已有资源不被覆盖。
@@ -40,4 +43,19 @@ function compareNeutralClaims(claims) {
   return { winnerId: winners.length === 1 ? winners[0].playerId : null, scores };
 }
 
-module.exports = { createNeutralPool, revealNeutral, compareNeutralClaims };
+
+function recoverEliminated(pool,player) {
+  if(!pool||!Array.isArray(pool.deck))throw Error('中立资源池无效');
+  const resources=[];
+  for(const item of [...player.hand,...player.generals]) {
+    if(item.kind==='general'&&item.health>0)resources.push({instanceId:randomUUID(),type:'card',card:general(item.id)});
+    else if(item.kind!=='general'&&item.country==='全局') {
+      const original=cards.find(c=>c.id===item.id&&c.country==='全局');
+      if(original)resources.push({instanceId:randomUUID(),type:'card',card:structuredClone(original)});
+    }
+  }
+  pool.deck=shuffle([...pool.deck,...resources]);
+  player.hand=[];player.generals=[];
+  return resources.length;
+}
+module.exports = { createNeutralPool, revealNeutral, compareNeutralClaims, recoverEliminated, config };

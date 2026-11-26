@@ -5,7 +5,7 @@ function createPlayer(name, seat, selection) {
   const initial=selection?.initial, deckGenerals=selection?.deckGenerals;
   if(!initial||!Array.isArray(deckGenerals)||deckGenerals.includes(initial))throw new Error('初始武将不能与主牌组武将重复');
   if(general(initial).source!=='primary'||deckGenerals.some(id=>general(id).source!=='primary'))throw Error('初始和主牌组武将必须来自主牌组武将池');
-  const starter=general(initial),deck=createTestDeck(deckGenerals);
+  const starter=general(initial),deck=createTestDeck(deckGenerals,selection.neutralIds);
   const marketIds=selection.marketIds===undefined?generals.filter(g=>g.source==='store').slice(0,5).map(g=>g.id):selection.marketIds;
   if(!Array.isArray(marketIds)||marketIds.length>5||new Set(marketIds).size!==marketIds.length||marketIds.includes(initial))throw new Error('额外武将池最多五名，不能重复或包含初始武将');
   const marketPool=marketIds.map(general);

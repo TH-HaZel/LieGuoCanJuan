@@ -1,0 +1,8 @@
+{
+  "goldCount": 20,
+  "goldMin": 1,
+  "goldMax": 5,
+  "publicCardCount": 20,
+  "initialGeneralIds": [],
+  "revealPerRound": 1
+}

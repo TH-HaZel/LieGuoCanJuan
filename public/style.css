@@ -354,3 +354,11 @@ body #game{padding-bottom:175px}
 
 /* 同盟信息简洁显示在事件旁。 */
 .alliance-status{display:flex;flex-wrap:wrap;gap:4px 8px;color:#526b78;font-size:12px;line-height:1.4}.alliance-status strong{font-size:12px}
+
+/* 首页规则阅读窗口 */
+.rules-dialog{width:min(740px,calc(100vw - 32px));max-height:min(82vh,850px);padding:0;border:1px solid #cdded2;border-radius:14px;background:#fff;color:#344b3b;box-shadow:0 18px 60px #172b2055}
+.rules-dialog::backdrop{background:#172b2080}
+.rules-header{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 22px;border-bottom:1px solid #dbe7dc;background:#f5f9f4}
+.rules-header h2{margin:0;font-size:20px}.rules-header button{flex:none}
+.rules-content{padding:18px 24px 26px;overflow-y:auto;max-height:calc(min(82vh,850px) - 70px);line-height:1.75}
+.rules-content h2{font-size:19px;margin:0 0 12px}.rules-content h3{font-size:16px;margin:18px 0 6px;color:#49634f}.rules-content ul{padding-left:1.4em;margin:6px 0}.rules-content li{margin:5px 0}

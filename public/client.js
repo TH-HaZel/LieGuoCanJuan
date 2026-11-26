@@ -5,14 +5,24 @@ async function enter(endpoint, data){
   try {const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error);sessionStorage.setItem('lieguo-session',JSON.stringify(result));connect(result);}
   catch(error){$('error').textContent=error.message;}
 }
-let availableGenerals=[];
+let availableGenerals=[],deckConfig=null;
+const effectNames={attack:'攻击加成',conditionalAttack:'条件攻击加成',distance:'距离修正',defense:'防御加成',attackPenalty:'攻击减益',attackReduction:'攻击加成削弱',winGold:'战胜收益',defeatDamage:'战败损伤',winAttack:'胜利加攻',lossAttack:'战败减攻',winDefense:'胜利加防',lossDefense:'战败减防',lossHealth:'战败损伤',attackGrowth:'攻击成长',defenseGrowth:'防御成长',damageReduction:'伤害减免',damageBoost:'国家伤害提升',defenseBoost:'防御翻倍',effect:'卡牌效果'};
 function escapeText(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function marketOptions(prefix){return availableGenerals.filter(g=>g.source==='store').map((g,i)=>`<label class="market-choice"><input type="checkbox" name="${prefix}-market" value="${escapeText(g.id)}" ${i<5?'checked':''}>${escapeText(g.name)}</label>`).join('');}
 function marketSelection(prefix){return Array.from(document.querySelectorAll(`input[name="${prefix}-market"]:checked`),input=>input.value);}
 const poolSettings=document.createElement('fieldset');poolSettings.className='market-settings';poolSettings.innerHTML='<legend>额外武将池（最多 5 名）</legend>'+marketOptions('room');$('initial').closest('.row').append(poolSettings);
-const selection=()=>({initial:$('initial').value,deckGenerals:[$('general1').value,$('general2').value],marketIds:marketSelection('room')});
-$('create').onclick=()=>enter('/api/create',{name:$('name').value,selection:selection()});
-$('join').onclick=()=>enter('/api/join',{name:$('name').value,code:$('roomInput').value,selection:selection()});
+const deckSettings=document.createElement('div');$('initial').closest('.row').after(deckSettings);
+function deckFields(prefix){
+ const saved=(()=>{try{return JSON.parse(localStorage.getItem('lieguo-deck-'+prefix))}catch{return null}})();
+ const ids=Array.isArray(saved)?saved:deckConfig.defaults;
+ return `<details class="market-settings"><summary>公共牌组（20 张，点击配置）</summary>${Object.entries(deckConfig.categories).map(([category,limit])=>`<fieldset><legend>${escapeText(category)}：${limit} 张</legend>${deckConfig.cards.filter(c=>c.deckCategory===category).map(c=>{const count=ids.filter(id=>id===c.id).length,max={high:1,medium:2,low:4}[c.rarity];return `<label class="market-choice">${escapeText(c.name)}（${{high:'高级',medium:'中级',low:'低级'}[c.rarity]}）<input type="number" name="${prefix}-deck" data-id="${c.id}" min="0" max="${max}" value="${count}" style="width:4em"></label>`}).join('')}</fieldset>`).join('')}<button type="button" data-save-deck="${prefix}">保存牌组</button><span data-deck-status="${prefix}"></span></details>`;
+}
+function deckSelection(prefix){return Array.from(document.querySelectorAll(`input[name="${prefix}-deck"]`)).flatMap(input=>{const n=Number(input.value),max=Number(input.max);if(!Number.isSafeInteger(n)||n<0||n>max)throw Error('公共牌数量超出允许范围');return Array(n).fill(input.dataset.id);});}
+document.addEventListener('click',event=>{const prefix=event.target.dataset.saveDeck;if(!prefix)return;try{localStorage.setItem('lieguo-deck-'+prefix,JSON.stringify(deckSelection(prefix)));document.querySelector(`[data-deck-status="${prefix}"]`).textContent='已保存';}catch(e){$('error').textContent=e.message;}});
+const selection=()=>({initial:$('initial').value,deckGenerals:[$('general1').value,$('general2').value],marketIds:marketSelection('room'),neutralIds:deckSelection('room')});
+function enterRoom(endpoint){try{enter(endpoint,{name:$('name').value,code:$('roomInput').value,selection:selection()});}catch(error){$('error').textContent=error.message;}}
+$('create').onclick=()=>enterRoom('/api/create');
+$('join').onclick=()=>enterRoom('/api/join');
 function connect(session){
   currentSession=session; if(source)source.close();const version=++connectionVersion;$('lobby').hidden=true;$('handoff').hidden=true;$('game').hidden=false;$('roomCode').textContent=session.code;
   source=new EventSource(`/events?room=${encodeURIComponent(session.code)}&token=${encodeURIComponent(session.token)}`);
@@ -22,8 +32,8 @@ function connect(session){
 }
 async function action(type,extra={}) {
   if(localGame&&type==='end-turn'){await localEndTurn();return;}
-  try {const response=await fetch('/api/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...currentSession,...extra})});const result=await response.json();if(!response.ok)throw new Error(result.error);if(localGame&&(type==='war-start'||type==='war-respond'||type==='bonus-choice'||type==='play-card'||type==='neutral-action'||type==='alliance-propose'||type==='alliance-vote')){
-      const nextId=result.alliance?.pending?.waitingId||result.pendingChoice?.playerId||result.neutral?.waitingId||result.war?.waitingId||result.currentPlayerId;const nextIndex=result.players.findIndex(p=>p.id===nextId);
+  try {const response=await fetch('/api/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...currentSession,...extra})});const result=await response.json();if(!response.ok)throw new Error(result.error);if(localGame&&(type==='war-start'||type==='war-respond'||type==='bonus-choice'||type==='play-card'||type==='neutral-action'||type==='alliance-propose'||type==='alliance-leave'||type==='alliance-gift'||type==='alliance-vote'||type==='trade-propose'||type==='trade-respond')){
+      const nextId=result.trade?.waitingId||result.alliance?.pending?.waitingId||result.pendingChoice?.playerId||result.neutral?.waitingId||result.war?.waitingId||result.currentPlayerId;const nextIndex=result.players.findIndex(p=>p.id===nextId);
       if(result.phase==='playing'&&nextIndex>=0&&nextIndex!==localGame.index){localGame.index=nextIndex;saveLocal();showHandoff();return;}
     }
     render(result);if(result.notice){$('message').textContent=result.notice;showEventToast(result.notice);}}catch(error){$('message').textContent=error.message;showEventToast(error.message);}
@@ -38,8 +48,8 @@ let selectedCardId=null,selectedCardTarget=null;
 const cardActions=document.createElement('div');cardActions.className='card-actions';$('game').append(cardActions);
 function renderWar(state){
   warPanel.replaceChildren();const me=state.self,w=state.war;
-  const pending=state.alliance?.pending;
-  const show=!state.neutral&&!state.pendingChoice&&(state.phase==='playing'&&(!!pending||!!w||state.currentPlayerId===me.id&&!state.mainActionUsed));
+  const pending=state.alliance?.pending, trade=state.trade;
+  const show=!state.neutral&&!state.pendingChoice&&(state.phase==='playing'&&(!!pending||!!trade||!!w||state.currentPlayerId===me.id&&(!state.mainActionUsed||(state.alliance?.groups||[]).some(g=>g.includes(me.id)))));
   warPanel.hidden=!show;
   if(!show)return;
   const detail=document.createElement('p');detail.className='war-detail';
@@ -48,16 +58,28 @@ function renderWar(state){
   const button=(text,fn,primary=false)=>{const b=warButton(text,fn);if(primary)b.classList.add('war-primary');controls.append(b);return b;};
   const amountInput=()=>{const input=document.createElement('input');input.type='number';input.min='0';input.step='1';input.value='0';input.setAttribute('aria-label','黄金数量');controls.append(input);return input;};
   const selectionLabel=()=>{const count=document.createElement('p');count.id='war-selected-count';count.className='war-selection';count.textContent=`已选择 ${selectedGenerals.size} 名将领 · 点击将领卡片选择`;controls.append(count);};
-  if(pending){
-    const required=Math.floor(pending.voters.length/2)+1,yes=Object.values(pending.votes).filter(v=>v==='yes').length;
-    detail.textContent=`${nameOf(pending.proposerId)}申请同盟 · 入盟费 ${pending.fee} 金 · 同意 ${yes}/${required}`;
+  const tradePackage=()=>{const box=document.createElement('div');box.textContent='选择交出的武将：';for(const [area,items] of [['generals',me.generals],['hand',me.hand]])items.forEach((g,index)=>{if(g.kind!=='general')return;const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.dataset.area=area;check.dataset.index=index;label.append(check,document.createTextNode(`${g.name}（${area==='hand'?'手牌':'场上'}）`));box.append(label);});controls.append(box);const gold=amountInput();return ()=>({gold:Number(gold.value),generals:[...box.querySelectorAll('input:checked')].map(x=>({area:x.dataset.area,index:Number(x.dataset.index)}))});};
+  if(trade){
+    detail.textContent=`${nameOf(trade.proposerId)} 与 ${nameOf(trade.targetId)} 交易 · ${trade.waitingId===me.id?'等待你的决定':'等待对方'}`;
+    const describe=p=>p?`${p.gold} 金，${p.generals.map(g=>{const boosts=(g.permanentBonuses||[]).map(x=>`${x.source}：${x.attribute==='attack'?'攻击':'防御'} +1`);const reductions=Object.entries(g.permanentPenalties||{}).filter(([,v])=>v>0).map(([k,v])=>`${k==='attack'?'攻击':'防御'} -${v}`);const effects=(g.statuses||[]).map(x=>`${x.source}：${x.kind} ${x.value>0?'+':''}${x.value}${x.expires===null?'':`（第 ${x.expires} 轮失效）`}`);return `${g.name}（生命 ${g.health}/${g.maxHealth}，攻 ${g.attack}，防 ${g.defense}，冷却 ${g.remaining}，经验 ${g.warExperience}；${[...boosts,...reductions,...effects].join('、')||'无额外状态'}）`;}).join('；')||'无武将'}`:'';
+    if(trade.offer)detail.textContent+=`；发起方提供：${describe(trade.offer)}`;
+    if(trade.reply)detail.textContent+=`；对方提供：${describe(trade.reply)}`;
+    if(trade.waitingId===me.id){if(trade.phase==='reply'){const get=tradePackage();button('提出条件',()=>action('trade-respond',{choice:'offer',...get()}),true);}else button('确认成交',()=>action('trade-respond',{choice:'accept'}),true);button('拒绝交易',()=>action('trade-respond',{choice:'reject'}));}
+  }else if(pending){
+    const required=pending.kind==='leave'?Math.ceil(pending.voters.length/2):Math.floor(pending.voters.length/2)+1,yes=Object.values(pending.votes).filter(v=>v==='yes').length;
+    detail.textContent=pending.kind==='leave'?`${nameOf(pending.proposerId)}申请和平退出同盟 · 同意 ${yes}/${required}`:`${nameOf(pending.proposerId)}申请同盟 · 入盟费 ${pending.fee} 金 · 同意 ${yes}/${required}`;
     if(pending.voters.includes(me.id)&&!Object.hasOwn(pending.votes,me.id)){button('同意',()=>action('alliance-vote',{choice:'yes'}),true);button('反对',()=>action('alliance-vote',{choice:'no'}));}
   }else if(!w){
-    if(state.currentPlayerId!==me.id||state.mainActionUsed)return;
+    if(state.currentPlayerId!==me.id)return;
+    const ownGroup=(state.alliance?.groups||[]).find(g=>g.includes(me.id));
+    if(ownGroup){button('申请和平退出同盟',()=>action('alliance-leave'));const giftTarget=document.createElement('select');giftTarget.setAttribute('aria-label','选择赠金盟友');for(const id of ownGroup.filter(id=>id!==me.id)){const p=state.players.find(p=>p.id===id&&p.health>0);if(p){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;giftTarget.append(o);}}controls.append(giftTarget);const giftAmount=amountInput();button('赠送黄金',()=>action('alliance-gift',{targetId:giftTarget.value,amount:Number(giftAmount.value)}));}
+
+    if(state.mainActionUsed){detail.textContent='本回合主要行动已使用。';warPanel.append(detail,controls);return;}
     const target=state.players.find(p=>p.id===warTargetId&&p.id!==me.id&&p.health>0);
     if(!target)warTargetId=null;
     detail.id='war-target-label';detail.textContent=target?`目标：${target.name}`:'点击对方头像选择目标，再点击己方将领选择参战。';
     selectionLabel();
+    const tradeTarget=document.createElement('select');for(const p of state.players.filter(p=>p.id!==me.id&&p.health>0)){const o=document.createElement('option');o.value=p.id;o.textContent=p.name;tradeTarget.append(o);}controls.append(tradeTarget);const getTrade=tradePackage();button('发起武将交易',()=>action('trade-propose',{targetId:tradeTarget.value,...getTrade()}));
     button('确认宣战',()=>{if(!warTargetId||!selectedGenerals.size){$('message').textContent='请先点击对方头像和己方可出战将领';showEventToast('请先点击对方头像和己方可出战将领');return;}action('war-start',{targetId:warTargetId,indices:[...selectedGenerals],experience:warExperienceSelection()});},true);
     if((state.alliance?.limit||0)>=2){const target=document.createElement('select');target.setAttribute('aria-label','选择同盟目标');for(const p of state.players.filter(p=>p.id!==me.id&&p.health>0)){const option=document.createElement('option');option.value=p.id;option.textContent=p.name;target.append(option);}controls.append(target);button('申请同盟',()=>action('alliance-propose',{targetId:target.value}));}
 
@@ -73,8 +95,14 @@ function renderWar(state){
     }else if(w.phase==='defense'){
       detail.textContent=`${attacker} 正在进攻。点击己方将领选择参战，或选择国家硬抗。`;selectionLabel();
       button('派将迎战',()=>{if(!selectedGenerals.size){$('message').textContent='请点击选择至少一名可出战武将';showEventToast('请点击选择至少一名可出战武将');return;}action('war-respond',{choice:'general',indices:[...selectedGenerals],experience:warExperienceSelection()});},true);button('国家硬抗',()=>action('war-respond',{choice:'hard'}));
+    }else if(w.phase==='support_request'){
+      detail.textContent='可以请求一名盟友增援。';const list=document.createElement('select');for(const ally of w.supportOptions||[]){const o=document.createElement('option');o.value=ally.id;o.textContent=ally.name;list.append(o);}controls.append(list);button('请求增援',()=>action('war-respond',{choice:'request',targetId:list.value}),true);button('不请求',()=>action('war-respond',{choice:'skip'}));
+    }else if(w.phase==='support_reply'){
+      detail.textContent='盟友请求增援；有可用武将时拒绝将退出同盟并受罚。';const list=document.createElement('select');for(const g of w.supportOptions||[]){const o=document.createElement('option');o.value=g.index;o.textContent=g.name;list.append(o);}controls.append(list);if(w.supportOptions?.length)button('派遣增援',()=>action('war-respond',{choice:'support',index:Number(list.value)}),true);button('拒绝增援',()=>action('war-respond',{choice:'refuse'}));
+    }else if(w.phase==='counter-target'){
+      detail.textContent='战争牌：'+(w.counterRevealed||[]).map(x=>`${nameOf(x.playerId)} · ${x.name}`).join(' / ')+'；选择要反制的效果。';const list=document.createElement('select');list.setAttribute('aria-label','选择反制目标');for(const target of w.counterOptions||[]){const option=document.createElement('option');option.value=target.effectId;option.textContent=`${target.ownerName} · ${target.sourceName}${target.sourceIndex!==null?'（第 '+(target.sourceIndex+1)+' 名武将）':''}${target.targetName?' → '+target.targetName:''}${target.key?' · '+(effectNames[target.key]||target.key):''}`;list.append(option);}controls.append(list);button('确认反制目标',()=>{if(!list.value){showEventToast('请选择反制目标');return;}action('war-respond',{choice:'counter-target',effectId:list.value});},true);
     }else if(w.phase==='tianyi'){
-      detail.textContent='裴行俭：选择一名敌方参战武将，本次战争封锁其技能。';const target=document.createElement('select');target.setAttribute('aria-label','选择天意目标');for(const g of w.tianyiOptions||[]){const option=document.createElement('option');option.value=String(g.index);option.textContent=g.name;target.append(option);}controls.append(target);button('确认天意',()=>action('war-respond',{choice:'target',targetIndex:Number(target.value)}),true);button('放弃天意',()=>action('war-respond',{choice:'target',targetIndex:null}));
+      detail.textContent='裴行俭：选择一名敌方参战武将，本次战争封锁其技能。';const target=document.createElement('select');target.setAttribute('aria-label','选择天意目标');for(const g of w.tianyiOptions||[]){const option=document.createElement('option');option.value=JSON.stringify({playerId:g.playerId,index:g.index});option.textContent=g.name;target.append(option);}controls.append(target);button('确认天意',()=>{const selected=JSON.parse(target.value);action('war-respond',{choice:'target',targetPlayerId:selected.playerId,targetIndex:selected.index});},true);button('放弃天意',()=>action('war-respond',{choice:'target',targetIndex:null}));
     }else if(w.phase==='conceal'){
       detail.textContent='选择一张战争牌暗盖，或选择不出牌。双方确认后一起揭示。';
       detail.textContent='点击手牌选择暗盖，或直接确认不出牌。';
@@ -86,6 +114,8 @@ function renderWar(state){
       button('支付赔偿',()=>action('war-respond',{choice:'accept'}),true);button('拒绝',()=>action('war-respond',{choice:'reject'}));
     }
   }
+  if(w?.phase==='counter-target'&&w.waitingId!==me.id){const reveal=document.createElement('p');reveal.textContent='已揭示：'+(w.counterRevealed||[]).map(x=>`${nameOf(x.playerId)} · ${x.name}`).join(' / ');warPanel.append(reveal);}
+  if(w?.supportReveal){const reveal=document.createElement('p');reveal.textContent=w.supportReveal;warPanel.append(reveal);}
   warPanel.append(detail,controls);
 }
 const allianceStatus=document.createElement('div');allianceStatus.className='alliance-status';$('message').parentElement.append(allianceStatus);
@@ -113,7 +143,7 @@ function showCardDetails(card){
   const description=document.createElement('p');description.textContent=card.description||'暂无介绍';
   const note=document.createElement('small');
   const supported=['N04','T18','T17','N29','T15(1)','T11','N31','N32','N03','T07','T09','T10','T01','T02','T03','T04','T12','T13','T14','T16','T05','T08','N01','N02','N05','N06','N07','N08','N09','N10','N11','N12','N13','N14','N15','N16','N17','N18','N19','N20','N21','N22','N23','N24','N26','N30'];
-  note.textContent=['T06','N28'].includes(card.id)?'已支持清除武将负面状态；国家状态待接入':card.id==='N25'?'暂时限制临时攻击增益；武将技能系统待接入':card.id==='N27'?'可移除当前已接入的临时武将增益':card.id==='T15'?'加入牌库已实现；李世民技能与贞观之治待实现':card.kind==='general'?(card.description==='无专属技能。'?'无专属技能':card.id==='G04'?'普通战争与中立争夺已实现；普通战争直接结束效果待确认':card.id==='G05'?'普通战争与中立争夺已实现':['G02','G03'].includes(card.id)?'普通战争与中立争夺已实现；普通战争直接结束效果待确认':['G06','G07','G08'].includes(card.id)?'普通战争已实现；特殊结算待接入':'武将技能暂未实现'):(supported.includes(card.id)?'此牌效果已实现':'此牌效果尚未实现');
+  note.textContent=['T06','N28'].includes(card.id)?'可清除己方武将或国家的负面状态':card.id==='N25'?'可限制武将技能和临时攻击增益':card.id==='N27'?'可移除当前已接入的临时武将增益':card.id==='T15'?'将特殊武将与贞观之治加入牌库':card.kind==='general'?(card.description==='无专属技能。'?'无专属技能':card.id==='G04'?'普通战争直接结束时技能不触发':card.id==='G05'?'普通战争与中立争夺已实现':['G02','G03'].includes(card.id)?'普通战争直接结束时技能不触发':['G06','G07','G08'].includes(card.id)?'普通战争及盟友增援已接入':'特殊武将技能已接入'):(supported.includes(card.id)?'此牌效果已实现':'此牌效果尚未实现');
   const close=document.createElement('button');close.textContent='关闭';
   const dismiss=()=>{overlay.remove();document.removeEventListener('keydown',onKey);};
   const onKey=e=>{if(e.key==='Escape')dismiss();};
@@ -131,7 +161,7 @@ function renderHand(cards,turnsStarted,state){
     button.type='button';
     const top=document.createElement('span');top.className='hand-card-top';
     const category=document.createElement('span');category.className='hand-card-category';category.textContent=[card.country,isGeneral?'武将':(card.variety||card.category||'技能牌')].filter(Boolean).join(' · ');
-    const cost=document.createElement('span');cost.className='hand-card-cost';cost.textContent='💰 '+(isGeneral?(state.self.deployDiscountTurn===turnsStarted?Math.floor(card.deployCost/2):card.deployCost):card.cost);
+    const cost=document.createElement('span');cost.className='hand-card-cost';cost.textContent='💰 '+(isGeneral?(state.self.deployDiscountTurn===turnsStarted?Math.floor(card.deployCost/2):card.deployCost):(card.effectiveCost ?? card.cost));
     top.append(cost,category);
     const name=document.createElement('strong');name.className='hand-card-name';name.textContent=card.name;
     const body=document.createElement('span');body.className='hand-card-body';
@@ -195,7 +225,11 @@ function renderNeutral(state){
   const info=document.createElement('span');const who=state.players.find(p=>p.id===n.waitingId);info.textContent=n.waitingId===state.self.id?'轮到你选择':`等待 ${who?.name||'其他玩家'} 选择`;middle.append(info);
   if(n.contest?.mains)for(const entry of n.contest.mains){const line=document.createElement('span');line.textContent=`${state.players.find(p=>p.id===entry.playerId)?.name||'玩家'}：${entry.name} · 攻 ${entry.power}`;middle.append(line);}
   if(n.contest?.supports)for(const entry of n.contest.supports){const line=document.createElement('span');line.textContent=`增援：${state.players.find(p=>p.id===entry.playerId)?.name||'玩家'} · ${entry.name}`;middle.append(line);}
+  if(n.phase==='counter-target'){const revealed=document.createElement('span');revealed.textContent='已揭示：'+(n.counterRevealed||[]).map(x=>`${state.players.find(p=>p.id===x.playerId)?.name||'玩家'} · ${x.name}`).join(' / ');middle.append(revealed);}
   if(n.waitingId!==state.self.id)return;
+  if(n.phase==='counter-target'){
+    const list=document.createElement('select');list.setAttribute('aria-label','选择反制目标');for(const target of n.counterOptions||[]){const option=document.createElement('option');option.value=target.effectId;option.textContent=`${target.ownerName} · ${target.sourceName}${target.sourceIndex!==null?'（第 '+(target.sourceIndex+1)+' 名武将）':''}${target.targetName?' → '+target.targetName:''}${target.key?' · '+(effectNames[target.key]||target.key):''}`;list.append(option);}middle.append(list,warButton('确认反制目标',()=>{if(!list.value){showEventToast('请选择反制目标');return;}action('neutral-action',{choice:'counter-target',effectId:list.value});}));return;
+  }
   if(n.phase==='tianyi'){
     const choices=n.tianyiOptions||[],list=document.createElement('select');list.setAttribute('aria-label','选择天意目标');
     choices.forEach((entry,index)=>{const option=document.createElement('option');option.value=String(index);option.textContent=(state.players.find(p=>p.id===entry.playerId)?.name||'玩家')+' · '+entry.name;list.append(option);});middle.append(list);
@@ -203,17 +237,17 @@ function renderNeutral(state){
   }
   if(n.phase==='card'){
     const list=document.createElement('select');list.setAttribute('aria-label','选择中立争夺牌');const skip=document.createElement('option');skip.value='';skip.textContent='不出牌';list.append(skip);
-    for(const c of state.self.hand.filter(c=>['T08','N01','N02','N05','N06','N07','N13','T03','T06','T13','T17','N22','N23','N25','N27','N28','N29','N30','N31','N32'].includes(c.id))){const option=document.createElement('option');option.value=c.instanceId;option.textContent=`${c.name} · 💰${c.cost}`;option.disabled=c.cost>state.self.gold;list.append(option);}
+    for(const c of state.self.hand.filter(c=>['T08','N01','N02','N05','N06','N07','N13','T03','T06','T13','T17','N22','N23','N25','N27','N28','N29','N30','N31','N32'].includes(c.id))){const option=document.createElement('option');option.value=c.instanceId;option.textContent=`${c.name} · 💰${c.effectiveCost ?? c.cost}`;option.disabled=(c.effectiveCost ?? c.cost)>state.self.gold;list.append(option);}
     const target=document.createElement('select');target.setAttribute('aria-label','选择卡牌目标国家');
     const general=document.createElement('select');general.setAttribute('aria-label','选择卡牌目标武将');
     const effect=document.createElement('select');effect.setAttribute('aria-label','选择要移除的效果');
-    const updateEffects=()=>{effect.replaceChildren();const p=state.players.find(x=>x.id===target.value),g=p?.generals[Number(general.value)],type=state.self.hand.find(c=>c.instanceId===list.value)?.id;if(type==='N31'){for(const bonus of (g?.permanentBonuses||[])){const option=document.createElement('option');option.value=bonus.id;option.textContent=bonus.source+'：'+(bonus.attribute==='attack'?'攻击':'防御')+' +1';effect.append(option);}}else{for(const status of (g?.statuses||[])){if(status.removable&&status.polarity===(type==='N27'?'positive':'negative')&&(status.expires===null||state.round<status.expires)){const option=document.createElement('option');option.value=status.id;option.textContent=status.source+'：'+status.kind;effect.append(option);}}}};
+    const updateEffects=()=>{effect.replaceChildren();const p=state.players.find(x=>x.id===target.value),g=p?.generals[Number(general.value)],type=state.self.hand.find(c=>c.instanceId===list.value)?.id;if(['T06','N28'].includes(type)&&general.value==='country'){for(const status of state.self.incomePenalties||[]){const option=document.createElement('option');option.value=status.id;option.textContent=`${status.source}：第 ${status.round} 轮收入 -${status.amount}`;effect.append(option);}}else if(type==='N31'){for(const bonus of (g?.permanentBonuses||[])){const option=document.createElement('option');option.value=bonus.id;option.textContent=bonus.source+'：'+(bonus.attribute==='attack'?'攻击':'防御')+' +1';effect.append(option);}}else{for(const status of (g?.statuses||[])){if(status.removable&&status.polarity===(type==='N27'?'positive':'negative')&&(status.expires===null||state.round<status.expires)){const option=document.createElement('option');option.value=status.id;option.textContent=status.source+'：'+status.kind;effect.append(option);}}}};
     general.onchange=updateEffects;
-    const updateGenerals=()=>{general.replaceChildren();const p=state.players.find(x=>x.id===target.value);for(const [index,g] of (p?.generals||[]).entries()){const option=document.createElement('option');option.value=String(index);option.textContent=g.name;general.append(option);}updateEffects();};
+    const updateGenerals=()=>{general.replaceChildren();const p=state.players.find(x=>x.id===target.value),type=state.self.hand.find(c=>c.instanceId===list.value)?.id;if(['T06','N28'].includes(type)){const o=document.createElement('option');o.value='country';o.textContent='己方国家';general.append(o);}for(const [index,g] of (p?.generals||[]).entries()){const option=document.createElement('option');option.value=String(index);option.textContent=g.name;general.append(option);}updateEffects();};
     target.onchange=updateGenerals;
     const refreshTarget=()=>{const chosen=state.self.hand.find(c=>c.instanceId===list.value);const type=chosen?.id;target.replaceChildren();for(const p of state.players){if(p.health<=0||(['N22','T13','T03','T06','T17','N28'].includes(type)?p.id!==state.self.id:p.id===state.self.id))continue;if(['N06','N29'].includes(type)&&!(n.contest?.mains||[]).some(entry=>entry.playerId===p.id))continue;const option=document.createElement('option');option.value=p.id;option.textContent=p.name;target.append(option);}target.hidden=!['N06','N29','N22','N23','T13','T03','T06','T17','N25','N28','N27','N31','N32'].includes(type);general.hidden=!['N22','N23','T13','T03','T06','T17','N25','N28','N27','N31','N32'].includes(type);effect.hidden=!['T06','N28','N27','N31'].includes(type);updateGenerals();};
     list.onchange=refreshTarget;refreshTarget();
-    middle.append(list,target,general,effect,warButton('确认出牌',()=>action('neutral-action',{choice:'card',instanceId:list.value||null,...(!target.hidden?{targetId:target.value}:{}),...(!general.hidden?{targetIndex:Number(general.value)}:{}),...(!effect.hidden?{effectId:effect.value}:{})})));return;
+    middle.append(list,target,general,effect,warButton('确认出牌',()=>action('neutral-action',{choice:'card',instanceId:list.value||null,...(!target.hidden?{targetId:target.value}:{}),...(!general.hidden?{targetIndex:general.value==='country'?null:Number(general.value)}:{}),...(!effect.hidden?{effectId:effect.value}:{})})));return;
   }
   if(n.phase==='negotiation'){
     const negotiation=n.negotiation, message=document.createElement('span');message.textContent=negotiation.message;middle.append(message);
@@ -259,7 +293,7 @@ function render(state){
   const targetMode=!!chosen&&!state.alliance?.pending&&['T03','T06','T11','T13','T17','N19','N22','N28'].includes(chosen.id)&&!state.war&&state.currentPlayerId===me.id;
   const enemyGeneralTargetMode=!!chosen&&!state.alliance?.pending&&['N04','N23','N25','N27','N31','N32'].includes(chosen.id)&&!state.war&&state.currentPlayerId===me.id;
   const countryTargetMode=!!chosen&&!state.alliance?.pending&&['T10','T16','N18','N24'].includes(chosen.id)&&!state.war&&state.currentPlayerId===me.id;
-  if(countryTargetMode&&chosen.id==='T10'&&me.health>0&&!state.pendingChoice){avatar.classList.add('target-avatar');avatar.tabIndex=0;avatar.setAttribute('role','button');avatar.setAttribute('aria-label','选择自己为卡牌目标');avatar.setAttribute('aria-pressed',String(selectedCardTarget===me.id));if(selectedCardTarget===me.id)avatar.classList.add('target-selected');const chooseSelf=()=>{selectedCardTarget=me.id;render(state);};avatar.onclick=chooseSelf;avatar.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();chooseSelf();}};}
+  if((countryTargetMode&&chosen.id==='T10'||targetMode&&['T06','N28'].includes(chosen.id))&&me.health>0&&!state.pendingChoice){avatar.classList.add('target-avatar');avatar.tabIndex=0;avatar.setAttribute('role','button');avatar.setAttribute('aria-label','选择自己为卡牌目标');avatar.setAttribute('aria-pressed',String(selectedCardTarget===me.id));if(selectedCardTarget===me.id)avatar.classList.add('target-selected');const chooseSelf=()=>{selectedCardTarget=targetMode?'country':me.id;render(state);};avatar.onclick=chooseSelf;avatar.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();chooseSelf();}};}
   const generals=$('generals');generals.replaceChildren();
   if(!me.generals.length)generals.textContent='暂无将领';
   me.generals.forEach((g,index)=>{
@@ -289,11 +323,11 @@ function render(state){
   else if(state.pendingChoice?.type==='permanent-bonus'&&state.pendingChoice.playerId===me.id){const label=document.createElement('span');label.textContent='军功簿：'+state.pendingChoice.generalName+'选择永久增益';cardActions.append(label);for(const [attribute,name] of [['attack','攻击 +1'],['defense','防御 +1']]){const b=warButton(name,()=>action('bonus-choice',{attribute}));b.className='card-confirm';cardActions.append(b);}}
   else if(discarding){const label=document.createElement('span');label.textContent=chosen?`弃置：${chosen.name}`:'策令：请选择一张手牌弃置';cardActions.append(label);const button=warButton('确认弃牌',()=>{if(!chosen){showEventToast('请选择一张手牌');return;}const id=chosen.instanceId;selectedCardId=null;selectedCardTarget=null;action('discard-choice',{instanceId:id});});button.className='card-confirm';cardActions.append(button);}
   else if(!state.neutral&&!state.pendingChoice&&!state.alliance?.pending&&(isConceal||(!state.war&&state.phase==='playing'&&state.currentPlayerId===me.id))){
-    const label=document.createElement('span');label.textContent=chosen?(handGeneralTargetMode?(selectedCardTarget===null?'请选择手牌中冷却的武将':`目标：${me.hand.find(c=>c.instanceId===selectedCardTarget)?.name||''}`):enemyGeneralTargetMode?(selectedCardTarget===null?'请选择敌方武将':`目标：${state.players.find(p=>p.id===selectedCardTarget.playerId)?.generals[selectedCardTarget.index]?.name||''}`):countryTargetMode?(selectedCardTarget===null?(chosen.id==='T10'?'请选择一名存活玩家':'请选择其他国家'):`目标：${state.players.find(p=>p.id===selectedCardTarget)?.name||''}`):targetMode?(selectedCardTarget===null?'请选择己方武将':`目标：${me.generals[selectedCardTarget]?.name||''}`):`已选：${chosen.name}`):(isConceal?'未选择：可不出牌':'点击手牌选择');cardActions.append(label);
+    const label=document.createElement('span');label.textContent=chosen?(handGeneralTargetMode?(selectedCardTarget===null?'请选择手牌中冷却的武将':`目标：${me.hand.find(c=>c.instanceId===selectedCardTarget)?.name||''}`):enemyGeneralTargetMode?(selectedCardTarget===null?'请选择敌方武将':`目标：${state.players.find(p=>p.id===selectedCardTarget.playerId)?.generals[selectedCardTarget.index]?.name||''}`):countryTargetMode?(selectedCardTarget===null?(chosen.id==='T10'?'请选择一名存活玩家':'请选择其他国家'):`目标：${state.players.find(p=>p.id===selectedCardTarget)?.name||''}`):targetMode?(selectedCardTarget===null?'请选择己方武将或国家':`目标：${selectedCardTarget==='country'?'己方国家':me.generals[selectedCardTarget]?.name||''}`):`已选：${chosen.name}`):(isConceal?'未选择：可不出牌':'点击手牌选择');cardActions.append(label);
     let effectSelect=null;
     if(chosen?.id==='N31'&&selectedCardTarget!==null){const g=state.players.find(p=>p.id===selectedCardTarget.playerId)?.generals[selectedCardTarget.index];effectSelect=document.createElement('select');effectSelect.setAttribute('aria-label','选择永久增益');(g?.permanentBonuses||[]).forEach(b=>{const option=document.createElement('option');option.value=b.id;option.textContent=(b.attribute==='attack'?'攻击':'防御')+' +1 · '+b.source;effectSelect.append(option);});cardActions.append(effectSelect);}
     if(chosen?.id==='N27'&&selectedCardTarget!==null){const g=state.players.find(p=>p.id===selectedCardTarget.playerId)?.generals[selectedCardTarget.index];effectSelect=document.createElement('select');effectSelect.setAttribute('aria-label','选择要移除的增益');(g?.statuses||[]).forEach(effect=>{if(effect.polarity==='positive'&&effect.removable&&(effect.expires===null||state.round<effect.expires)){const option=document.createElement('option');option.value=effect.id;option.textContent=effect.kind==='attack'?`攻击 +${effect.value}`:`战胜后恢复 ${effect.value} 生命`;effectSelect.append(option);}});cardActions.append(effectSelect);}
-    if(['T06','N28'].includes(chosen?.id)&&selectedCardTarget!==null){const g=me.generals[selectedCardTarget];effectSelect=document.createElement('select');effectSelect.setAttribute('aria-label','选择负面状态');(g?.statuses||[]).forEach(effect=>{if(effect.polarity==='negative'&&effect.removable&&(effect.expires===null||state.round<effect.expires)){const option=document.createElement('option');option.value=effect.id;option.textContent=effect.kind==='war_lock'?`${effect.source}：战争封锁`:`${effect.source}：攻击 ${effect.value}`;effectSelect.append(option);}});cardActions.append(effectSelect);}
+    if(['T06','N28'].includes(chosen?.id)&&selectedCardTarget!==null){const g=me.generals[selectedCardTarget];effectSelect=document.createElement('select');effectSelect.setAttribute('aria-label','选择负面状态');(selectedCardTarget==='country'?(me.incomePenalties||[]).map(e=>({...e,polarity:'negative',removable:true,expires:null,kind:'income',value:-e.amount})):(g?.statuses||[])).forEach(effect=>{if(effect.polarity==='negative'&&effect.removable&&(effect.expires===null||state.round<effect.expires)){const option=document.createElement('option');option.value=effect.id;option.textContent=effect.kind==='war_lock'?`${effect.source}：战争封锁`:effect.kind==='income'?`${effect.source}：第 ${effect.round} 轮收入 ${effect.value}`:`${effect.source}：攻击 ${effect.value}`;effectSelect.append(option);}});cardActions.append(effectSelect);}
     const confirm=warButton(isConceal?'确认暗盖':'出牌',()=>{
       if(isConceal){if(chosen?.kind==='general'){$('message').textContent='武将不能暗盖';showEventToast('武将不能暗盖');return;}const id=selectedCardId;selectedCardId=null;selectedCardTarget=null;action('war-respond',{choice:'card',instanceId:id});return;}
       if(!chosen){$('message').textContent='请先选择手牌';showEventToast('请先选择手牌');return;}
@@ -307,7 +341,7 @@ function render(state){
       if(handGeneralTargetMode&&selectedCardTarget===null){showEventToast('请选择手牌中冷却的武将');return;}
       const targetInstanceId=handGeneralTargetMode?selectedCardTarget:null;
       const effectId=effectSelect?effectSelect.value:null;
-      const id=selectedCardId,targetIndex=targetMode?selectedCardTarget:enemyGeneralTargetMode?selectedCardTarget.index:null,targetPlayerId=countryTargetMode?selectedCardTarget:enemyGeneralTargetMode?selectedCardTarget.playerId:null;selectedCardId=null;selectedCardTarget=null;action('play-card',{instanceId:id,targetIndex,targetPlayerId,effectId,targetInstanceId});
+      const id=selectedCardId,targetIndex=targetMode?(selectedCardTarget==='country'?null:selectedCardTarget):enemyGeneralTargetMode?selectedCardTarget.index:null,targetPlayerId=countryTargetMode?selectedCardTarget:enemyGeneralTargetMode?selectedCardTarget.playerId:null;selectedCardId=null;selectedCardTarget=null;action('play-card',{instanceId:id,targetIndex,targetPlayerId,effectId,targetInstanceId});
     });confirm.className='card-confirm';cardActions.append(confirm);
   }
 
@@ -351,10 +385,11 @@ document.addEventListener('keydown',event=>{
 const localKey='lieguo-hotseat-v1';
 function saveLocal(){sessionStorage.setItem(localKey,JSON.stringify(localGame));}
 function generalOptions(selected){return availableGenerals.filter(g=>g.source==='primary').map((g,i)=>`<option value="${escapeText(g.id)}" ${i===selected?'selected':''}>${escapeText(g.name)}</option>`).join('');}
-function localFields(){const count=Number($('localCount').value);$('localPlayers').innerHTML=Array.from({length:count},(_,i)=>`<details class="local-player"><summary>玩家 ${i+1}</summary><div class="row"><label>昵称<input id="localName${i}" maxlength="20" value="玩家 ${i+1}"></label><label>初始武将<select id="localInitial${i}">${generalOptions(0)}</select></label><label>主牌组武将 1<select id="localGeneralA${i}">${generalOptions(1)}</select></label><label>主牌组武将 2<select id="localGeneralB${i}">${generalOptions(2)}</select></label></div><fieldset class="market-settings"><legend>额外武将池（最多 5 名）</legend>${marketOptions('local'+i)}</fieldset></details>`).join('');}
+function localFields(){const count=Number($('localCount').value);$('localPlayers').innerHTML=Array.from({length:count},(_,i)=>`<details class="local-player"><summary>玩家 ${i+1}</summary><div class="row"><label>昵称<input id="localName${i}" maxlength="20" value="玩家 ${i+1}"></label><label>初始武将<select id="localInitial${i}">${generalOptions(0)}</select></label><label>主牌组武将 1<select id="localGeneralA${i}">${generalOptions(1)}</select></label><label>主牌组武将 2<select id="localGeneralB${i}">${generalOptions(2)}</select></label></div><fieldset class="market-settings"><legend>额外武将池（最多 5 名）</legend>${marketOptions('local'+i)}</fieldset>${deckFields('local'+i)}</details>`).join('');}
 $('localCount').onchange=localFields;
 for(const id of ['create','join','localStart'])$(id).disabled=true;
-fetch('/api/generals').then(response=>{if(!response.ok)throw Error('无法读取武将列表');return response.json();}).then(data=>{
+Promise.all(['/api/generals','/api/deck-options'].map(url=>fetch(url).then(response=>{if(!response.ok)throw Error('无法读取游戏配置');return response.json();}))).then(([data,options])=>{
+  deckConfig=options;deckSettings.innerHTML=deckFields('room');
   if(!Array.isArray(data)||data.filter(g=>g.source==='primary').length<3)throw Error('主牌组武将不足，至少需要三名');
   availableGenerals=data;
   for(const [index,id] of ['initial','general1','general2'].entries()){
@@ -368,7 +403,7 @@ async function post(endpoint,data){const response=await fetch(endpoint,{method:'
 function showHandoff(){++connectionVersion;if(source){source.close();source=null;}$('game').hidden=true;$('lobby').hidden=true;$('handoff').hidden=false;$('hand').replaceChildren();warPanel.replaceChildren();warPanel.hidden=true;lastGameState=null;cardActions.replaceChildren();selectedCardId=null;selectedCardTarget=null;selectedGenerals.clear();selectionContext='';warTargetId=null;marketPanel.hidden=true;marketPanel.replaceChildren();$('self').textContent='';$('generals').textContent='';$('handoffName').textContent=localGame.players[localGame.index].name;}
 $('localStart').onclick=async()=>{
  if(switching)return;const count=Number($('localCount').value),configs=[];
- for(let i=0;i<count;i++){const name=$('localName'+i).value.trim(),initial=$('localInitial'+i).value,deckGenerals=[$('localGeneralA'+i).value,$('localGeneralB'+i).value],marketIds=marketSelection('local'+i);if(marketIds.length>5||marketIds.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的额外武将池（最多五名，不能包含初始武将）。`;return;}if(!name||deckGenerals[0]===deckGenerals[1]||deckGenerals.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的昵称，三名武将须互不相同。`;return;}configs.push({name,selection:{initial,deckGenerals,marketIds}});}
+ for(let i=0;i<count;i++){const name=$('localName'+i).value.trim(),initial=$('localInitial'+i).value,deckGenerals=[$('localGeneralA'+i).value,$('localGeneralB'+i).value],marketIds=marketSelection('local'+i);if(marketIds.length>5||marketIds.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的额外武将池（最多五名，不能包含初始武将）。`;return;}if(!name||deckGenerals[0]===deckGenerals[1]||deckGenerals.includes(initial)){$('error').textContent=`请检查玩家 ${i+1} 的昵称，三名武将须互不相同。`;return;}let neutralIds;try{neutralIds=deckSelection('local'+i);}catch(e){$('error').textContent=`玩家 ${i+1}：${e.message}`;return;}configs.push({name,selection:{initial,deckGenerals,marketIds,neutralIds}});}
  switching=true;$('localStart').disabled=true;$('error').textContent='';
  try{const host=await post('/api/create',configs[0]);const players=[{...host,name:configs[0].name}];for(let i=1;i<count;i++){const joined=await post('/api/join',{...configs[i],code:host.code});players.push({...joined,name:configs[i].name});}await post('/api/start',host);localGame={players,index:0};saveLocal();sessionStorage.removeItem('lieguo-session');showHandoff();}catch(e){$('error').textContent=e.message;}finally{switching=false;$('localStart').disabled=false;}
 };
@@ -408,6 +443,12 @@ function compactLobby(){
   lobby.append(stash);
   heading.textContent='🎴 列国残卷';
   home.append(entry('创建或加入房间',roomNodes),entry('单机轮流测试',localNodes));
+  const rulesButton=document.createElement('button');rulesButton.type='button';rulesButton.className='lobby-entry';rulesButton.textContent='查看游戏规则';
+  const rulesDialog=document.createElement('dialog');rulesDialog.className='rules-dialog';rulesDialog.setAttribute('aria-labelledby','rules-title');
+  const rulesHeader=document.createElement('div');rulesHeader.className='rules-header';const rulesTitle=document.createElement('h2');rulesTitle.id='rules-title';rulesTitle.textContent='游戏规则';const closeRules=document.createElement('button');closeRules.type='button';closeRules.textContent='关闭';closeRules.onclick=()=>rulesDialog.close();rulesHeader.append(rulesTitle,closeRules);
+  const rulesContent=document.createElement('div');rulesContent.className='rules-content';rulesContent.setAttribute('aria-live','polite');rulesDialog.append(rulesHeader,rulesContent);document.body.append(rulesDialog);
+  rulesButton.onclick=async()=>{rulesContent.textContent='正在读取规则…';rulesDialog.showModal();try{const response=await fetch('/api/rules');if(!response.ok)throw Error('读取失败');const markdown=await response.text();rulesContent.replaceChildren();let list=null;for(const raw of markdown.split(/\r?\n/)){const line=raw.trim();if(!line){list=null;continue;}let element;if(line.startsWith('## ')){element=document.createElement('h3');element.textContent=line.slice(3);list=null;}else if(line.startsWith('# ')){element=document.createElement('h2');element.textContent=line.slice(2);list=null;}else if(line.startsWith('- ')){if(!list){list=document.createElement('ul');rulesContent.append(list);}element=document.createElement('li');element.textContent=line.slice(2);list.append(element);continue;}else{element=document.createElement('p');element.textContent=line;list=null;}rulesContent.append(element);}}catch(error){rulesContent.textContent='规则暂时无法读取，请稍后重试。';}};
+  home.append(rulesButton);
   config.append(back,configTitle,content);
   if(divider)divider.remove();if(localHeading)localHeading.remove();
   lobby.insertBefore(home,$('error'));lobby.insertBefore(config,$('error'));

@@ -5,6 +5,7 @@ const { generalAfterDefeat } = require('./combat');
 const { randomUUID } = require('node:crypto');
 const statuses = require('./statuses');
 const generalSkills = require('./generalSkills');
+const effectResolution = require('./effectResolution');
 
 // This module operates on server-side player objects; clients submit only indices.
 function start(players, resourceId) {
@@ -66,6 +67,23 @@ function view(state, playerId) {
     result: state.phase === 'complete' ? state.result : undefined
   };
 }
+// 仅预览实际触发的战后效果；不改变生命或资源。
+function pendingSkills(state,round){
+  const winner=state.result.winnerId, effects=[];
+  for(const p of state.players){
+    const main=state.mains.get(p.id),support=state.supports.get(p.id);if(!main)continue;
+    const lost=!!((winner&&p.id!==winner)||state.forcedDefeat?.has(p.id));
+    const outcome=winner===p.id?'win':lost?'loss':'draw';
+    for(const g of [main,support].filter(Boolean)){
+      const losses=(lost&&g===main?1:0)+(lost&&state.extraLossPlayers?.has(p.id)?1:0);
+      const blocked=state.blockedGenerals?state.blockedGenerals.has(g):statuses.active(g,round).some(e=>e.kind==='war_lock');
+      if(!p.generals.includes(g)||g.health<=losses||blocked)continue;
+      const keys=g.id==='G02'?(outcome==='win'?['winAttack']:outcome==='loss'?['lossAttack',...(g===support?[]:['lossHealth'])]:[]):g.id==='G03'?(outcome==='win'?['winDefense']:outcome==='loss'?['lossAttack','lossDefense']:[]):g.id==='G04'?['attackGrowth','defenseGrowth']:[];
+      for(const effect of effectResolution.createGeneral(g,p.id).filter(e=>keys.includes(e.key)))effects.push({...effect,id:`after:${p.id}:${p.generals.indexOf(g)}:${effect.key}`,sideId:p.id,counterable:effectResolution.counterable(g.id,effect.key,true),choice:{source:g}});
+    }
+  }
+  return effects;
+}
 function settle(state, pool, turnSerial, round = 0) {
   if (state.phase !== 'complete' || !state.result || state.settled) throw Error('当前不能结算');
   if (!pool || !Array.isArray(pool.visible) || !Number.isSafeInteger(turnSerial) || turnSerial < 0 || !Number.isSafeInteger(round) || round < 0) throw Error('资源池或回合无效');
@@ -112,7 +130,7 @@ function settle(state, pool, turnSerial, round = 0) {
       const blocked = state.blockedGenerals ? state.blockedGenerals.has(g) : statuses.active(g, round).some(e => e.kind === 'war_lock');
       const outcome = winner?.id === p.id ? 'win' : winner || state.forcedDefeat?.has(p.id) ? 'loss' : 'draw';
       // 戍卫仅对国家受伤的普通战争生效；中立资源争夺不触发。
-      if (g.id !== 'G06') generalSkills.afterBattle(p, g, blocked, outcome, {neutralSupport:g === state.supports.get(p.id)});
+      if (g.id !== 'G06') generalSkills.afterBattle(p, g, blocked, outcome, {neutralSupport:g === state.supports.get(p.id),...(state.postEffects?{effects:state.postEffects.filter(e=>e.choice.source===g)}:{})});
     }
   }
   const bonusChoices = [];
@@ -146,4 +164,4 @@ function settle(state, pool, turnSerial, round = 0) {
   state.settled = true;
   return { winnerId: winner ? winner.id : null, experienceTie: lowest.length > 1 ? lowest : [], bonusChoices };
 }
-module.exports = { start, submitMain, submitSupport, view, settle };
+module.exports = { start, submitMain, submitSupport, view, settle, pendingSkills };

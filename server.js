@@ -10,6 +10,8 @@ function nameOf(input) {const name=String(input || '').trim(); if (!name || name
 const server = http.createServer(async (req,res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
+    if (req.method === 'GET' && url.pathname === '/api/rules') {const rules=await fs.promises.readFile(path.join(__dirname,'README.md'),'utf8');res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});res.end(rules);return;}
+    if (req.method === 'GET' && url.pathname === '/api/deck-options') {const deck=require('./game/deck');json(res,200,{cards:deck.neutralOptions(),defaults:deck.defaultNeutral,categories:deck.categories});return;}
     if (req.method === 'GET' && url.pathname === '/api/generals') {json(res,200,require('./game/deck').generals.map(({id,name,source})=>({id,name,source})));return;}
     if (req.method === 'GET' && files[url.pathname]) {
       const [file,mime]=files[url.pathname]; fs.readFile(path.join(__dirname,'public',file),(err,data)=>{if(err){res.writeHead(500);res.end('读取失败');return;}res.writeHead(200,{'Content-Type':mime,'Cache-Control':'no-store'});res.end(data);});return;
@@ -18,10 +20,10 @@ const server = http.createServer(async (req,res) => {
       const {room,player}=rooms.authenticate(url.searchParams.get('room')||'',url.searchParams.get('token')||'');
       res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache','Connection':'keep-alive'}); rooms.subscribe(room,player,res); return;
     }
-    if (req.method==='POST' && ['/api/create','/api/join','/api/start','/api/end-turn','/api/deploy','/api/buy','/api/withdraw','/api/experience-cooldown','/api/alliance-propose','/api/alliance-vote','/api/play-card','/api/discard-choice','/api/neutral-action','/api/bonus-choice','/api/war-start','/api/war-respond'].includes(url.pathname)) {
+    if (req.method==='POST' && ['/api/create','/api/join','/api/start','/api/end-turn','/api/deploy','/api/buy','/api/withdraw','/api/experience-cooldown','/api/trade-propose','/api/trade-respond','/api/alliance-gift','/api/alliance-leave','/api/alliance-propose','/api/alliance-vote','/api/play-card','/api/discard-choice','/api/neutral-action','/api/bonus-choice','/api/war-start','/api/war-respond'].includes(url.pathname)) {
       let data=''; for await(const part of req){data+=part;if(data.length>4096) throw new Error('请求过大');}
       const body=JSON.parse(data || '{}');
-      if (url.pathname === '/api/start' || url.pathname === '/api/end-turn' || url.pathname === '/api/deploy' || url.pathname === '/api/buy' || url.pathname === '/api/withdraw' || url.pathname === '/api/experience-cooldown' || url.pathname === '/api/alliance-propose' || url.pathname === '/api/alliance-vote' || url.pathname === '/api/play-card' || url.pathname === '/api/discard-choice' || url.pathname === '/api/neutral-action' || url.pathname === '/api/bonus-choice' || url.pathname === '/api/war-start' || url.pathname === '/api/war-respond') {json(res,200,rooms.action(body.code || '',body.token || '',url.pathname.slice(5),body));return;}
+      if (url.pathname === '/api/start' || url.pathname === '/api/end-turn' || url.pathname === '/api/deploy' || url.pathname === '/api/buy' || url.pathname === '/api/withdraw' || url.pathname === '/api/experience-cooldown' || url.pathname === '/api/trade-propose' || url.pathname === '/api/trade-respond' || url.pathname === '/api/alliance-gift' || url.pathname === '/api/alliance-leave' || url.pathname === '/api/alliance-propose' || url.pathname === '/api/alliance-vote' || url.pathname === '/api/play-card' || url.pathname === '/api/discard-choice' || url.pathname === '/api/neutral-action' || url.pathname === '/api/bonus-choice' || url.pathname === '/api/war-start' || url.pathname === '/api/war-respond') {json(res,200,rooms.action(body.code || '',body.token || '',url.pathname.slice(5),body));return;}
       const name=nameOf(body.name);
       if(url.pathname==='/api/create'){const {room,player}=rooms.createRoom(name,body.selection);json(res,200,{code:room.code,token:player.token});}
       else {const code=String(body.code||'').trim().toUpperCase();const player=rooms.joinRoom(code,name,body.selection);json(res,200,{code,token:player.token});}return;

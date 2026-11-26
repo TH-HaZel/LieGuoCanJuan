@@ -1,8 +1,9 @@
 'use strict';
 const {drawCard,general,shuffle}=require('./deck');
 const crypto=require('node:crypto');
-const {deployPrice,buyPrice}=require('./prices');
+const {deployPrice,buyPrice,cardPrice}=require('./prices');
 const cardEffects=require('./cardEffects');
+const effectResolution=require('./effectResolution');
 const permanentBonuses=require('./permanentBonuses');
 const neutral=require('./neutral');
 const neutralRound=require('./neutralRound');
@@ -10,12 +11,12 @@ function refreshMarkets(room){for(const p of room.players)p.market=shuffle(p.mar
 function requireTurn(room,player){if(room.pendingAlliance)throw Error('同盟表决进行中');if(room.neutralRound)throw Error('中立资源争夺进行中');if(room.pendingChoice)throw Error('请先完成弃牌');if(room.war)throw Error('战争尚未结束');if(room.phase!=='playing'||room.players[room.turnIndex].id!==player.id)throw new Error('只能在自己的回合操作');}
 function receiveGeneral(player,g){if(player.hand.length<10){player.hand.push(g);return false;}const reset=general(g.id);reset.instanceId=g.instanceId;reset.deployAfterTurn=g.deployAfterTurn;player.discard.push(reset);return true;}
 function startRound(room){for(const p of room.players){if(p.health<=0)continue;for(const effect of p.recoverySchedule||[]){const offset=room.round-effect.start;if(offset>=0&&offset<3)p.health=Math.min(p.maxHealth,p.health+[3,2,1][offset]);}p.recoverySchedule=(p.recoverySchedule||[]).filter(effect=>room.round<effect.start+2);}}
-function beginTurn(room,player){player.turnsStarted++;player.gold+=player.pendingPolicy||0;player.pendingPolicy=0;player.purchased=false;const penalties=player.incomePenalties||[];player.gold+=Math.max(0,Math.min(room.round,7)-penalties.filter(p=>p.round===room.round).reduce((sum,p)=>sum+p.amount,0));player.incomePenalties=penalties.filter(p=>p.round>room.round);if(player.country==='唐朝')player.gold+=1;const result=drawCard(player);for(let i=0;i<(player.goldenAge||0);i++){player.defense+=2;drawCard(player);}for(let i=0;i<(player.taxEffects||0);i++){player.gold++;drawCard(player);}return result;}
+function beginTurn(room,player){player.turnsStarted++;player.gold+=player.pendingPolicy||0;player.pendingPolicy=0;player.purchased=false;const penalties=player.incomePenalties||[];player.gold+=Math.max(0,Math.min(room.round,7)-penalties.filter(p=>p.round===room.round).reduce((sum,p)=>sum+p.amount,0));player.incomePenalties=penalties.filter(p=>p.round>room.round);if(player.country==='唐朝')player.gold+=1;const result=drawCard(player);for(let i=0;i<(player.goldenAge||0)+(player.goldenAgeDefense||0);i++)player.defense+=2;for(let i=0;i<(player.goldenAge||0)+(player.goldenAgeDraw||0);i++)drawCard(player);for(let i=0;i<(player.taxEffects||0)+(player.taxGoldEffects||0);i++)player.gold++;for(let i=0;i<(player.taxEffects||0)+(player.taxDrawEffects||0);i++)drawCard(player);return result;}
 function startGame(room, player) {
   if(room.phase!=='waiting')throw new Error('游戏已经开始');
   if(room.players[0].id!==player.id)throw new Error('只有房主可以开始游戏');
   if(room.players.length<2)throw new Error('至少需要 2 名玩家');
-  room.alliances=[];room.pendingAlliance=null;room.phase='playing';room.turnIndex=0;room.round=1;room.turnSerial=1;room.mainActionUsed=false;room.neutralPool=neutral.createNeutralPool();neutral.revealNeutral(room.neutralPool);refreshMarkets(room);
+  room.alliances=[];room.pendingAlliance=null;room.phase='playing';room.turnIndex=0;room.round=1;room.turnSerial=1;room.mainActionUsed=false;room.neutralPool=neutral.createNeutralPool();for(let i=0;i<neutral.config.revealPerRound;i++)neutral.revealNeutral(room.neutralPool);refreshMarkets(room);
   for(const p of room.players)for(let i=0;i<5;i++)drawCard(p);
   const result=beginTurn(room,room.players[0]);
   room.event=`游戏开始，${room.players[0].name}的回合：${result}。`;
@@ -36,7 +37,7 @@ function endTurn(room, player) {
 
 }
 function beginNextRound(room){
-  room.neutralRound=null;room.round++;startRound(room);refreshMarkets(room);neutral.revealNeutral(room.neutralPool);
+  room.neutralRound=null;room.round++;startRound(room);refreshMarkets(room);for(let i=0;i<neutral.config.revealPerRound;i++)neutral.revealNeutral(room.neutralPool);
   room.turnIndex=room.players.findIndex(p=>p.health>0);
   if(room.turnIndex<0)throw Error('没有存活国家');
   const p=room.players[room.turnIndex],result=beginTurn(room,p);room.event=`进入第 ${room.round} 轮；${p.name}的回合：${result}。`;
@@ -87,11 +88,12 @@ function playCard(room,player,body){
   if(index<0||typeof body.instanceId!=='string')throw Error('手牌不存在');
   const card=player.hand[index],effect=cardEffects[card.id];
   if(!effect||card.kind==='general')throw Error('该牌效果尚未实现');
-  if(player.gold<card.cost)throw Error('黄金不足');
-  const context={room,player,targetIndex:body.targetIndex,targetPlayerId:body.targetPlayerId,effectId:body.effectId,targetInstanceId:body.targetInstanceId,card};
+  if(player.gold<cardPrice(player,card))throw Error('黄金不足');
+  const actionEffects=effectResolution.createAction(card,player.id);if(!actionEffects.length)throw Error('该牌缺少效果定义');
+  const context={room,player,isEffectEnabled:key=>effectResolution.enabled(actionEffects,player.id,card.id,key),targetIndex:body.targetIndex,targetPlayerId:body.targetPlayerId,effectId:body.effectId,targetInstanceId:body.targetInstanceId,card};
   if(effect.validate)effect.validate(context);
-  player.gold-=card.cost;player.hand.splice(index,1);if(card.variety==='能力')(player.consumed||(player.consumed=[])).push(card);else player.discard.push(card);
-  effect.use(context);room.lastPlayed=[{playerName:player.name,card:{id:card.id,name:card.name,country:card.country,variety:card.variety,cost:card.cost,rarity:card.rarity,description:card.description}}];room.event=`${player.name}使用了${card.name}。`;
+  player.gold-=cardPrice(player,card);player.hand.splice(index,1);if(card.variety==='能力')(player.consumed||(player.consumed=[])).push(card);else player.discard.push(card);
+  if(actionEffects.some(e=>!e.cancelled))effect.use(context);room.lastPlayed=[{playerName:player.name,card:{id:card.id,name:card.name,country:card.country,variety:card.variety,cost:card.cost,rarity:card.rarity,description:card.description}}];room.event=`${player.name}使用了${card.name}。`;
 }
 function discardChoice(room,player,instanceId){
   if(room.phase!=='playing'||room.pendingChoice?.type!=='discard'||room.pendingChoice.playerId!==player.id||room.players[room.turnIndex].id!==player.id)throw Error('当前无需你弃牌');

@@ -1,0 +1,8 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),rooms=require('../server/rooms');
+const sel={initial:'G01',deckGenerals:['G02','G03'],marketIds:[]};
+function setup(n=4){const {room,player:a}=rooms.createRoom('甲',sel),ps=[a];for(let i=1;i<n;i++)ps.push(rooms.joinRoom(room.code,'玩家'+i,sel));const act=(p,t,b={})=>rooms.action(room.code,p.token,t,b);act(a,'start');return {room,ps,act};}
+test('和平退出其余成员一半同意即可，不消耗主要行动',()=>{const {room,ps:[a,b,c],act}=setup(3);room.alliances=[[a.id,b.id,c.id]];act(a,'alliance-leave');act(b,'alliance-vote',{choice:'yes'});assert.deepEqual(room.alliances,[[b.id,c.id]]);assert.equal(room.mainActionUsed,false);});
+test('和平退出被否决不改变同盟',()=>{const {room,ps:[a,b],act}=setup(2);room.alliances=[[a.id,b.id]];act(a,'alliance-leave');act(b,'alliance-vote',{choice:'no'});assert.deepEqual(room.alliances,[[a.id,b.id]]);assert.equal(room.mainActionUsed,false);});
+test('攻击盟友立即退盟扣金，惩罚从下一次战争开始',()=>{const {room,ps:[a,b],act}=setup(2);room.alliances=[[a.id,b.id]];a.gold=0;a.generals[0].attack=5;b.generals[0].defense=2;act(a,'war-start',{targetId:b.id,indices:[0]});assert.equal(a.gold,-10);assert.deepEqual(room.alliances,[]);act(b,'war-respond',{choice:'fight'});act(b,'war-respond',{choice:'general',indices:[0]});act(a,'war-respond',{choice:'card',instanceId:null});act(b,'war-respond',{choice:'card',instanceId:null});assert.equal(b.health,32);assert.equal(a.militaryBetrayalPending,true);});
+test('背叛后战前赔偿取消战争仍保留下一次惩罚',()=>{const {room,ps:[a,b],act}=setup(2);room.alliances=[[a.id,b.id]];act(a,'war-start',{targetId:b.id,indices:[0]});act(b,'war-respond',{choice:'offer',amount:0});act(a,'war-respond',{choice:'accept'});assert.equal(room.war,null);assert.equal(a.militaryBetrayalPending,true);});
